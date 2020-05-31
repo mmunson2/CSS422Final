@@ -49,11 +49,12 @@ INITIALIZE
 
 * ------ Test Initializations ------
 
+* Currently set to Matthew's test, sorry if I forgot!
 *  MOVE.W    #$4E91, $4000   * JSR Opcode
 *  MOVE.W    #$4E71, $4002   * NOP Opcode
 *  MOVE.W    #$4E75, $4004   * RTS Opcode
 *  MOVE.W    #$5241, $4000   * ADDQ Opcode
-  MOVE.W    #$D240, $4000   * ADD Opcode
+   MOVE.W    #$D240, $4000   * ADD Opcode
 
   MOVE.L    #$4000, START_ADDR
   MOVE.L    #$5000, END_ADDR
@@ -288,6 +289,7 @@ ADD
 *-------------------------------------------------------------------------------
 *   NOP
 *
+*   NONSTANDARD OPCODE! Don't base your design off of this :)
 *
 *-------------------------------------------------------------------------------
 NOP
@@ -298,11 +300,14 @@ NOP
 
   MOVE.W  #2,LOOP_INC   * Increment the loop counter by 2 bytes
 
+  JSR     PRINT_IMMEDIATE_NEWLINE
+
   RTS
 
 *-------------------------------------------------------------------------------
 *   RTS
 *
+*   NONSTANDARD OPCODE! Don't base your design off of this :)
 *
 *-------------------------------------------------------------------------------
 RTS
@@ -312,6 +317,8 @@ RTS
   TRAP    #15
 
   MOVE.W  #2,LOOP_INC   * Increment the loop counter by 2 bytes
+
+  JSR     PRINT_IMMEDIATE_NEWLINE
 
   RTS
 
@@ -406,6 +413,8 @@ PRINT_OPCODE_LOOP_RETURN * Print methods come back here
 PRINT_OPCODE_LOOP_FINISH
 
   MOVE.L  STACK_BASE,SP  * Return the stack to normal so we can RTS
+
+  JSR     PRINT_IMMEDIATE_NEWLINE
   RTS
 
 *-------------------------------------------------------------------------------
@@ -1085,6 +1094,24 @@ PRINTADDR
 
 	RTS
 
+*--------------------------------------------------------------------------------
+* PRINT_IMMEDIATE_NEWLINE
+*
+* CANNOT PUSH TO STACK - Used to put a newline after each opcode
+*
+* Registers Used:
+*	D0: Trap task designator
+*	D1: Memory address to display
+*
+* A1: Data memory location
+*
+PRINT_IMMEDIATE_NEWLINE
+
+  LEA	     STRING_NEWLINE,A1
+	MOVEQ	   #14,D0
+	TRAP	   #15
+
+  RTS
 
 
 
@@ -1117,7 +1144,9 @@ STRING_PLUS                 DC.B    '+',0
 STRING_MINUS                DC.B    '-',0
 STRING_POUND                DC.B    '#',0
 STRING_DOLLAR               DC.B    '$',0
+
 STRING_FOURSPACE            DC.B    '    ',0
+STRING_NEWLINE              DC.B    '',CR,LF,0
 
 STRING_NOP                  DC.B    'NOP',0
 STRING_RTS                  DC.B    'RTS',0
