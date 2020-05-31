@@ -1,4 +1,3 @@
-gaboo
 *-------------------------------------------------------------------------------
 * Title      : PUSH_BWT / EA_MODE_ID Development
 * Written by : Ihsan Halimun, Camden Brewster, Matthew Munson
