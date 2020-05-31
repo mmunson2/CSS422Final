@@ -47,7 +47,7 @@ START:
 *-------------------------------------------------------------------------------
 INITIALIZE
 
-* ------ JSR TEST ------
+* ------ Test Initializations ------
 
 *  MOVE.W    #$4E91, $4000   * JSR Opcode
 *  MOVE.W    #$4E71, $4002   * NOP Opcode
@@ -57,6 +57,7 @@ INITIALIZE
 
   MOVE.L    #$4000, START_ADDR
   MOVE.L    #$5000, END_ADDR
+
 
 * ------ Standard Initializations ------
   MOVE.W    #0, PRINT_COUNT
@@ -81,6 +82,7 @@ INITIALIZE
 *
 * A0: The current Loop Index, updated before and after BRANCHBLOCK
 * A1: How much we should increment the loop index
+* A2: Local Variable - used for retrieving DATA
 *-------------------------------------------------------------------------------
 OPCODE_LOOP
 
@@ -88,16 +90,28 @@ OPCODE_LOOP
     CMPA.L  END_ADDR, A0  * Check to see if we're done
     BGT     DONE
 
+* ------ Reset Loop Variables ------
     MOVE.W  #0,PRINT_COUNT  * Reset print count to zero
     MOVE.W  #0,LOOP_INC     * Reset loop index increment to zero
-
     CLR     D7
-    MOVE.W  (A0),D7       * Get the memory at the loop index
+
+* ------ Get memory at loop index ------
+    MOVE.W  (A0),D7
+
+* ------ Fill DATA1 and DATA2 ------
+    MOVEA.L  A0,A2
+    ADDA     #2,A2        * Increment by 1 word to get the long afterwards
+    MOVE.L  (A2),DATA1   * Fill DATA1 with the long after the opcode
+    ADDA     #4,A2
+    MOVE.L  (A2),DATA2   * Fill DATA2 with the long after DATA1
 
 
+* ------ Execute Subroutines ------
     JSR     PRINTADDR             * Print the memory address
     JSR     BRANCHBLOCK           * Figure out what opcode this is and print
 
+
+* ------ Increment Loop ------
     MOVEA.L     LOOP_INDEX,A0
     MOVEA.W     LOOP_INC,A1
     ADDA    A1,A0  * Move the index to the next opcode
