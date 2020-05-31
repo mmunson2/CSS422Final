@@ -352,7 +352,7 @@ ADDQ
 
   SWAP    D7              * Reset D7 for EA MODE
   JSR     PUSH_EA_MODE_ID
-  MOVE.W  #2,LOOP_INC     * Increment the loop counter by 4 bytes
+  MOVE.W  #4,LOOP_INC     * Increment the loop counter by 4 bytes
 
 
   BRA     PRINT_OPCODE    * Always put this at the end
@@ -371,7 +371,7 @@ JSR
 
   JSR     PUSH_EA_MODE_ID
 
-  MOVE.W  #4,LOOP_INC     * Increment the loop counter by 4 bytes
+  MOVE.W  #2,LOOP_INC     * Increment the loop counter by 4 bytes
 
   BRA     PRINT_OPCODE    * Always put this at the end
 
