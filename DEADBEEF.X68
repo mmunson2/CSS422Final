@@ -157,7 +157,7 @@ BRANCHBLOCK
   CLR     D0
   MOVE.W  D7,D0
   SWAP    D0
-  ROL.L   #&04,D0
+  ROL.L   #$04,D0
   AND.B   #$F,D0
   CMP.B   #5,D0
   BEQ     ADDQ
