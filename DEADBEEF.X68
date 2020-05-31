@@ -1038,24 +1038,6 @@ PRINT_JSR
     TRAP            #15			* Print ", "
     BRA             PRINT_OPCODE_LOOP_RETURN
 
-
-
-*-------------------------------------------------------------------------------
-*
-*		PRINT COMMA
-*________________________________________
-* Register Use Summary:
-*
-* D0: LOCAL VARIABLE  - Trap task designator
-*
-* A1: LOCAL VARIABLE  - String address
-*-------------------------------------------------------------------------------
-PRINT_COMMA
-    LEA             STRING_COMMA,A1	* Load ", " into A1
-    MOVE.B          #14,D0		* Set trap task to String
-    TRAP            #15			* Print ", "
-    RTS
-
 *-------------------------------------------------------------------------------
 *
 *		PRINT ILLEGAL
@@ -1076,7 +1058,6 @@ PRINT_ILLEGAL       * INCOMPLETE *
 
     MOVE.L          D7,(SP)
     RTS
-
 
 *--------------------------------------------------------------------------------
 * PRINTADDR SUBROUTINE
