@@ -1,3 +1,5 @@
+Matthew was here
+
 *-------------------------------------------------------------------------------
 * Title      : PUSH_BWT / EA_MODE_ID Development
 * Written by : Ihsan Halimun, Camden Brewster, Matthew Munson
@@ -63,7 +65,7 @@ INITIALIZE
   MOVE.B    #0, NUMBER
 
   MOVEA.L  START_ADDR,A0
-  MOVE.L   A0,LOOP_INDEX
+  MOVE.L   A0,LOOP_INDEX * Both A0 and LOOP_INDEX contain the start address
 
 
 
@@ -124,9 +126,9 @@ DONE
 * D1:
 * D2:
 * D3:
-* D4:
+* D4: (Keep in mind this is parameter for BWL)
 * D5:
-* D6: CONST - The lower byte of the current opcode - NO TOUCH
+* D6:
 * D7: CONST - The opcode to decode - NO TOUCH
 *________________________________________
 * A0:
@@ -334,6 +336,7 @@ ADDQ
   ADD.W   #2,PRINT_COUNT
 
   ROL.L   #$02,D6           * Isolate bits 7 - 6
+  CLR      D4
   MOVE.B   D6,D4            * Move bits 7,6 to D4 for BWL
 
   LEA     PUSH_BWL,A5    * Load the PUSH_BWL subroutine into intermediate address
@@ -355,8 +358,6 @@ ADDQ
 
 
   BRA     PRINT_OPCODE    * Always put this at the end
-
-  RTS
 
 
 *-------------------------------------------------------------------------------
@@ -986,7 +987,6 @@ PRINT_EA_MODE_ID_IND_LONG
 
     MOVE.B          #1,BOOL_HAS_DATA_L
 
-
     JSR             PRINT_LONG_DESIGNATOR
     BRA             PRINT_OPCODE_LOOP_RETURN
 
@@ -1128,11 +1128,10 @@ STRING_ADD                  DC.B    'ADD',0
 STRING_ADDA                 DC.B    'ADDA',0
 STRING_JSR                  DC.B    'JSR',0
 
-BOOL_HAS_DATA_W             DS.B    1
-BOOL_HAS_DATA_L             DS.B    1
-
 NUMBER  DS.B    1    * Misc number to be printed
 
+BOOL_HAS_DATA_W             DS.B    1
+BOOL_HAS_DATA_L             DS.B    1
 
 
     END    START
