@@ -54,19 +54,33 @@ INITIALIZE
 *  MOVE.W    #$4E75, $4004   * RTS Opcode
 *  MOVE.W    #$5241, $4000   * ADDQ Opcode
   MOVE.W    #$D240, $4000   * ADD Opcode
-   
+
   MOVE.L    #$4000, START_ADDR
   MOVE.L    #$5000, END_ADDR
 
 * ------ Standard Initializations ------
   MOVE.W    #0, PRINT_COUNT
-  MOVE.B    #0, NUMBER    
-  
+  MOVE.B    #0, NUMBER
+
   MOVEA.L  START_ADDR,A0
   MOVE.L   A0,LOOP_INDEX
 
 
 
+*-------------------------------------------------------------------------------
+*    OPCODE LOOP
+*
+*    The disassembler's main loop. Gets the contents of a memory location,
+*    sends it to BRANCHBLOCK to be decoded and printed, and checks if we're
+*    at the user defined endpoint.
+*
+* ________________________________________
+* Register Use Summary:
+*
+* D7: CONST - The opcode to decode. Set before BRANCHBLOCK
+*
+* A0: The current Loop Index, updated before and after BRANCHBLOCK
+* A1: How much we should increment the loop index
 *-------------------------------------------------------------------------------
 OPCODE_LOOP
 
@@ -74,7 +88,8 @@ OPCODE_LOOP
     CMPA.L  END_ADDR, A0  * Check to see if we're done
     BGT     DONE
 
-    MOVE.L  (A0),D7       * Get the memory at the loop index
+    CLR     D7
+    MOVE.W  (A0),D7       * Get the memory at the loop index
     JSR     PRINTADDR             * Print the memory address
     JSR     BRANCHBLOCK           * Figure out what opcode this is and print
 
@@ -90,54 +105,73 @@ DONE
     * This will eventually RTE to the user input section
 
     SIMHALT
-*-------------------------------------------------------------------------------
-
 
 
 
 *-------------------------------------------------------------------------------
-*   BRANCHBLOCK
+*     BRANCHBLOCK
+*
+*  Decodes the opcode in D7 and jumps to the corresponding opcode subroutine
+*
+*  Because 1 line is pulled out of memory at a time, it's possible that the
+*  next opcode only takes up one word, and it's in the upper word of the
+*  opcode long (eg.4E71FFFF is NOP then empty). We must check for single word
+*  opcodes before we use any of the data in the lower word of D7.
+*________________________________________
+* Register Use Summary:
+*
+* D0: General variable, cleared every use to be safe
+* D1:
+* D2:
+* D3:
+* D4:
+* D5:
+* D6: CONST - The lower byte of the current opcode - NO TOUCH
+* D7: CONST - The opcode to decode - NO TOUCH
+*________________________________________
+* A0:
+* A1:
+* A2:
+* A3:
+* A4:
+* A5:
+* A6:
+* A7:
 *-------------------------------------------------------------------------------
 BRANCHBLOCK
 
   MOVE.L  SP,STACK_BASE   * Save the position of the stack for later
 
 * ---- DEBUG ----
-  CMP.L   #$FFFFFFFF,D7
+  CMP.L   #$FFFF,D7
   BEQ   DONE * For debug only! Exit if memory is unset
 
-  MOVE.L  D7,D0
-
-* ---- D6 is for 1 word opcodes ----
-  MOVE.L  D7,D6
-  SWAP    D6
-
-
-* ---- EASY! ----
+* ---- CONSTANT OPCODES ----
   CMP.W   #$4E71,D7
   BEQ   NOP
 
   CMP.W   #$4E75,D7
   BEQ   RTS
-  
-  SWAP    D6          * Temporarily swap D6
-  ROL.L   #$04,D6
-  AND.B   #$F,D6
-  CMP.B   #5,D6
-  BEQ   ADDQ
-  MOVE.L  D7,D6
-  SWAP    D6          * If not ADDQ, restore D6
-  
-  AND.W   #$F000,D6
-  CMP.W   #$D000,D6
-  BEQ   ADD_ADDA   
-  MOVE.L  D7,D6
-  SWAP    D6          * If not ADD or ADDA, restore D6
-  
+
+* ---- ADDQ ----
+  CLR     D0
+  MOVE.W  D7,D0
+  SWAP    D0
+  ROL.L   #&04,D0
+  AND.B   #$F,D0
+  CMP.B   #5,D0
+  BEQ     ADDQ
+
+* ---- ADDA ----
+  CLR     D0
+  MOVE.L  D7,D0
+  AND.W   #$F000,D0
+  CMP.W   #$D000,D0
+  BEQ     ADD_ADDA
 
 * ---- 10 BIT OPCODES ----
-
-  MOVE.W  D6,D0
+  CLR     D0
+  MOVE.W  D7,D0
   AND.W   #$FFC0,D0   * Mask opcode to get first 10 bits only
 
   ASR.W   #6,D0
@@ -148,77 +182,97 @@ BRANCHBLOCK
 * ---- UH OH ----
 
   BRA     PRINT_ILLEGAL
-    
+
+
 *-------------------------------------------------------------------------------
-*   OPCODES
+* ________   ________   ________   ________   ________   _______
+*|\   __  \ |\   __  \ |\   ____\ |\   __  \ |\   ___ \ |\  ___ \
+*\ \  \|\  \\ \  \|\  \\ \  \___| \ \  \|\  \\ \  \_|\ \\ \   __/|
+* \ \  \\\  \\ \   ____\\ \  \     \ \  \\\  \\ \  \ \\ \\ \  \_|/__
+*  \ \  \\\  \\ \  \___| \ \  \____ \ \  \\\  \\ \  \_\\ \\ \  \_|\ \
+*   \ \_______\\ \__\     \ \_______\\ \_______\\ \_______\\ \_______\
+*    \|_______| \|__|      \|_______| \|_______| \|_______| \|_______|
+*
 *-------------------------------------------------------------------------------
 
-*------------
+*-------------------------------------------------------------------------------
+*   ADD ADDA
+*
+*
+*-------------------------------------------------------------------------------
 ADD_ADDA
 
   ADDA    #2,A0  * Move the index to the data
   MOVE.L  (A0),DATA1
   SUBA    #2,A0
-  
- 
+
+
   MOVE.L  D7,D6
   SWAP    D6          * Restore D6
   ROR.W   #06,D6     * Get bits 7,6 on end
   AND.B   #03,D6     * Isolate bits 7,6
-  CMP.B   #03,D6     
+  CMP.B   #03,D6
   BEQ   ADDA
   BRA   ADD
-  
-RESUME_ADD    
-  MOVE.W #0,D4    * Number for LOOP_INC
-  
+
+RESUME_ADD
+  MOVE.W #0,D3    * Number for LOOP_INC
+
   CMP.B #1,BOOL_HAS_DATA_W
   BEQ   ADD_ADDA_LOOP_ADD_W
   CMP.B #1,BOOL_HAS_DATA_L
   BNE   ADD_ADDA_LOOP_NO_ADD
-  
-  ADD.B  #2, D4
+
+  ADD.B  #2, D3
 
 ADD_ADDA_LOOP_ADD_W
-  ADD.B  #2, D4
+  ADD.B  #2, D3
 
-ADD_ADDA_LOOP_NO_ADD  
-  ADD.B #2, D4
-  ROR.B #2, D4
-  AND.B #$C,D4
-  
-  MOVE.B  D4,LOOP_INC   
+ADD_ADDA_LOOP_NO_ADD
+  ADD.B #2, D3
+  ROR.B #2, D3
+  AND.B #$C,D3
 
-  
+  MOVE.B  D3,LOOP_INC
+
+
   MOVE.B  #0,BOOL_HAS_DATA_W
-  MOVE.B  #0,BOOL_HAS_DATA_L  
-  BRA   PRINT_OPCODE  
+  MOVE.B  #0,BOOL_HAS_DATA_L
+  BRA   PRINT_OPCODE
 
   RTS
-*------------
+*-------------------------------------------------------------------------------
+*   ADDA
+*
+*
+*-------------------------------------------------------------------------------
 ADDA
 
   LEA     PRINT_ADDA,A5    * Load the print subroutine into intermediate address
   MOVE.L  A5, -(SP)       * Put the print subroutine jump onto the stack
   ADD.W   #2,PRINT_COUNT
-      
+
   BRA   RESUME_ADD
 
-*------------
+*-------------------------------------------------------------------------------
+*   ADD
+*
+*
+*-------------------------------------------------------------------------------
 ADD
 
   LEA     PRINT_ADD,A5    * Load the print subroutine into intermediate address
   MOVE.L  A5, -(SP)       * Put the print subroutine jump onto the stack
   ADD.W   #2,PRINT_COUNT
 
-  MOVE.B   D6,D4            * Move bits 7,6 to D4 for BWL  
+  MOVE.B   D6,D4            * Move bits 7,6 to D4 for BWL
 
   LEA     PUSH_BWL,A5    * Load the PUSH_BWL subroutine into intermediate address
   MOVE.L  A5, -(SP)       * Put the PUSH_BWL subroutine jump onto the stack
   ADD.W   #2,PRINT_COUNT
-  
+
   SWAP    D7              * Reset D7 for EA MODE
-  JSR     PUSH_EA_MODE_ID  
+  JSR     PUSH_EA_MODE_ID
   MOVE.W  #4,LOOP_INC     * Increment the loop counter by 4 bytes
 
   MOVE D7,D6    * Reset D6
@@ -226,12 +280,16 @@ ADD
   ASR.L   #$8,D6
   ASR.L   #$1,D6
 
-  AND.B   #$8,D6  
+  AND.B   #$8,D6
   BEQ     PUSH_EA_MODE_ID_DN
-    
+
   BRA   RESUME_ADD
-  
-*------------
+
+*-------------------------------------------------------------------------------
+*   NOP
+*
+*
+*-------------------------------------------------------------------------------
 NOP
 
   LEA     STRING_NOP,A1
@@ -242,7 +300,11 @@ NOP
 
   RTS
 
-*------------
+*-------------------------------------------------------------------------------
+*   RTS
+*
+*
+*-------------------------------------------------------------------------------
 RTS
 
   LEA     STRING_RTS,A1
@@ -253,50 +315,56 @@ RTS
 
   RTS
 
-*------------
+*-------------------------------------------------------------------------------
+*   ADDQ
+*
+*
+*-------------------------------------------------------------------------------
 ADDQ
   MOVE.L  D7,D6             * Reset bit shit
   ROL.L   #$04,D6
-  
+
   ROL.L   #$04,D6           * Isolate bits 11 - 8
-  AND.B   #1,D6            
+  AND.B   #1,D6
   CMP.B   #0,D6             * Check for 0 in 8th bit
   BNE     PRINT_ILLEGAL
 
   LEA     PRINT_ADDQ,A5    * Load the print subroutine into intermediate address
   MOVE.L  A5, -(SP)       * Put the print subroutine jump onto the stack
   ADD.W   #2,PRINT_COUNT
-  
+
   ROL.L   #$02,D6           * Isolate bits 7 - 6
-  MOVE.B   D6,D4            * Move bits 7,6 to D4 for BWL  
+  MOVE.B   D6,D4            * Move bits 7,6 to D4 for BWL
 
   LEA     PUSH_BWL,A5    * Load the PUSH_BWL subroutine into intermediate address
   MOVE.L  A5, -(SP)       * Put the PUSH_BWL subroutine jump onto the stack
   ADD.W   #2,PRINT_COUNT
-  
+
   MOVE.L  D7,D6             * Reset D6
   ROL.L   #$7, D6           * Get bits 11 - 9
   AND.B   #$7, D6           * Clear bit 11
-  
+
   MOVE.B  D6,NUMBER
   LEA     PRINT_NUMBER,A5
   MOVE.L  A5, -(SP)
   ADD.W   #2, PRINT_COUNT
-  
+
   SWAP    D7              * Reset D7 for EA MODE
-  JSR     PUSH_EA_MODE_ID  
+  JSR     PUSH_EA_MODE_ID
   MOVE.W  #4,LOOP_INC     * Increment the loop counter by 4 bytes
 
 
   BRA     PRINT_OPCODE    * Always put this at the end
-  
+
   RTS
-   
 
-*------------
+
+*-------------------------------------------------------------------------------
+*   JSR
+*
+*
+*-------------------------------------------------------------------------------
 JSR
-
-  SWAP    D7   * Modify the opcode register since we know it's 1 word
 
   LEA     PRINT_JSR,A5    * Load the print subroutine into intermediate address
   MOVE.L  A5, -(SP)       * Put the print subroutine jump onto the stack
@@ -307,7 +375,7 @@ JSR
   MOVE.W  #4,LOOP_INC     * Increment the loop counter by 4 bytes
 
   BRA     PRINT_OPCODE    * Always put this at the end
-  
+
   RTS
 
 
@@ -376,7 +444,7 @@ PRINT_OPCODE_LOOP_FINISH
 * Register Use Summary:
 *
 * D0: LOCAL VARIABLE - low byte of opcode
-* D7: CONST PARAMETER - The first long of the current opcode
+* D7: CONST PARAMETER - The current opcode word
 *
 * A4: LOCAL VARIABLE - RTS value temporary storage - must be swapped
 * A5: LOCAL VARIABLE - Print Label to be pushed to stack
@@ -495,6 +563,7 @@ PUSH_EA_MODE_ID_FINISH
 *                   \ \_______\ \____________\ \_______\
 *                    \|_______|\|____________|\|_______|
 *
+
 *-------------------------------------------------------------------------------
 
 *-------------------------------------------------------------------------------
@@ -506,7 +575,7 @@ PUSH_EA_MODE_ID_FINISH
 * Register Use Summary:
 *
 * D4: PARAMETER       - The size bits to print
-* D7: CONST PARAMETER - The first long of the current opcode
+* D7: CONST PARAMETER - The opcode word
 *
 * A4: LOCAL VARIABLE  - Temp RTS location
 * A5: LOCAL VARIABLE  - Label for the print routine to store on the stack
@@ -546,14 +615,14 @@ PUSH_BWL_LONG
 
 *________________________________________
 PUSH_BWL_FINISH
-  
+
     MOVEA.L         (SP),A4	* Store the value we're going to RTS to
     ADD.L           #4,SP	* Move the stack pointer down to the RTS value
     MOVE.L          A5,-(SP)	* Overwrite the RTS value with the print label
     MOVE.L          A4,-(SP)	* Push the RTS so we can return like normal
 
     ADD.W           #4,PRINT_COUNT
-  
+
     RTS
 
 
@@ -617,7 +686,7 @@ PRINT_ADDA
 *-------------------------------------------------------------------------------
 PRINT_NUMBER
     CLR D1
-    
+
     MOVE.B  #15,D0
     MOVE.B  NUMBER,D1
     MOVE.B  #10,D2
@@ -700,7 +769,7 @@ PRINT_LONG_DESIGNATOR
 *
 * D0: LOCAL VARIABLE  - Trap task designator
 * D1: LOCAL VARIABLE  - Dn Register number to display
-* D7: CONST PARAMETER - The first long of the current opcode
+* D7: CONST PARAMETER - The opcode word
 *
 * A1: LOCAL VARIABLE  - String address
 *-------------------------------------------------------------------------------
@@ -729,7 +798,7 @@ PRINT_EA_MODE_ID_DN
 *
 * D0: LOCAL VARIABLE  - Trap task designator
 * D1: LOCAL VARIABLE  - Dn Register number to display
-* D7: CONST PARAMETER - The first long of the current opcode
+* D7: CONST PARAMETER - The opcode word
 *
 * A1: LOCAL VARIABLE  - String address
 *-------------------------------------------------------------------------------
@@ -757,7 +826,7 @@ PRINT_EA_MODE_ID_AN
 *
 * D0: LOCAL VARIABLE  - Trap task designator
 * D1: LOCAL VARIABLE  - Dn Register number to display
-* D7: CONST PARAMETER - The first long of the current opcode
+* D7: CONST PARAMETER - The opcode word
 *
 * A1: LOCAL VARIABLE  - String address
 *-------------------------------------------------------------------------------
@@ -791,7 +860,7 @@ PRINT_EA_MODE_ID_AN_INDIRECT
 *
 * D0: LOCAL VARIABLE  - Trap task designator
 * D1: LOCAL VARIABLE  - Dn Register number to display
-* D7: CONST PARAMETER - The first long of the current opcode
+* D7: CONST PARAMETER - The opcode word
 *
 * A1: LOCAL VARIABLE  - String address
 *-------------------------------------------------------------------------------
@@ -831,7 +900,7 @@ PRINT_EA_MODE_ID_AN_POST_INC
 *
 * D0: LOCAL VARIABLE  - Trap task designator
 * D1: LOCAL VARIABLE  - Dn Register number to display
-* D7: CONST PARAMETER - The first long of the current opcode
+* D7: CONST PARAMETER - The opcode word
 *
 * A1: LOCAL VARIABLE  - String address
 *-------------------------------------------------------------------------------
@@ -873,7 +942,7 @@ PRINT_EA_MODE_ID_AN_PRE_DEC
 *
 * D0: LOCAL VARIABLE  - Trap task designator
 * D1: LOCAL VARIABLE  - Dn Register number to display
-* D7: CONST PARAMETER - The first long of the current opcode
+* D7: CONST PARAMETER - The opcode word
 *
 * A1: LOCAL VARIABLE  - String address
 *-------------------------------------------------------------------------------
@@ -886,7 +955,7 @@ PRINT_EA_MODE_ID_IND_SHORT
     MOVEQ           #15,D0
     MOVEQ           #16,D2
     TRAP            #15
-    
+
     MOVE.B          #1,BOOL_HAS_DATA_W
 
     JSR             PRINT_WORD_DESIGNATOR
@@ -901,7 +970,7 @@ PRINT_EA_MODE_ID_IND_SHORT
 *
 * D0: LOCAL VARIABLE  - Trap task designator
 * D1: LOCAL VARIABLE  - Dn Register number to display
-* D7: CONST PARAMETER - The first long of the current opcode
+* D7: CONST PARAMETER - The opcode word
 *
 * A1: LOCAL VARIABLE  - String address
 *-------------------------------------------------------------------------------
@@ -914,7 +983,7 @@ PRINT_EA_MODE_ID_IND_LONG
     MOVEQ           #15,D0
     MOVEQ           #16,D2
     TRAP            #15
-    
+
     MOVE.B          #1,BOOL_HAS_DATA_L
 
 
@@ -930,7 +999,7 @@ PRINT_EA_MODE_ID_IND_LONG
 *
 * D0: LOCAL VARIABLE  - Trap task designator
 * D1: LOCAL VARIABLE  - Dn Register number to display
-* D7: CONST PARAMETER - The first long of the current opcode
+* D7: CONST PARAMETER - The opcode word
 *
 * A1: LOCAL VARIABLE  - String address
 *-------------------------------------------------------------------------------
@@ -947,11 +1016,11 @@ PRINT_EA_MODE_ID_ABS_DATA
     MOVEQ           #15,D0
     MOVEQ           #16,D2
     TRAP            #15
-    
+
     MOVE.B          #1,BOOL_HAS_DATA_L
-  
+
     BRA             PRINT_OPCODE_LOOP_RETURN
-    
+
 *-------------------------------------------------------------------------------
 *
 *		PRINT JSR
@@ -998,12 +1067,12 @@ PRINT_COMMA
 *-------------------------------------------------------------------------------
 PRINT_ILLEGAL       * INCOMPLETE *
     MOVE.L          (SP),D7
-    
+
     MOVE.L          #0,SP
     LEA             STRING_ILLEGAL,A1
     MOVE.B          #13,D0
     TRAP            #15
-    
+
     MOVE.L          D7,(SP)
     RTS
 
@@ -1078,10 +1147,10 @@ STRING_ADD                  DC.B    'ADD',0
 STRING_ADDA                 DC.B    'ADDA',0
 STRING_JSR                  DC.B    'JSR',0
 
-BOOL_HAS_DATA_W             DS.B    1 
-BOOL_HAS_DATA_L             DS.B    1   
+BOOL_HAS_DATA_W             DS.B    1
+BOOL_HAS_DATA_L             DS.B    1
 
-NUMBER  DS.B    1    * Misc number to be printed    
+NUMBER  DS.B    1    * Misc number to be printed
 
 
 
@@ -1089,7 +1158,7 @@ NUMBER  DS.B    1    * Misc number to be printed
 
 
 
-    
+
 *~Font name~Courier New~
 *~Font size~10~
 *~Tab type~1~
