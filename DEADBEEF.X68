@@ -47,14 +47,13 @@ START:
 *-------------------------------------------------------------------------------
 INITIALIZE
 
-* ------ Test Initializations ------
+* ------ JSR TEST ------
 
-* Currently set to Matthew's test, sorry if I forgot!
 *  MOVE.W    #$4E91, $4000   * JSR Opcode
 *  MOVE.W    #$4E71, $4002   * NOP Opcode
 *  MOVE.W    #$4E75, $4004   * RTS Opcode
 *  MOVE.W    #$5241, $4000   * ADDQ Opcode
-   MOVE.W    #$D240, $4000   * ADD Opcode
+  MOVE.W    #$D240, $4000   * ADD Opcode
 
   MOVE.L    #$4000, START_ADDR
   MOVE.L    #$5000, END_ADDR
@@ -89,8 +88,13 @@ OPCODE_LOOP
     CMPA.L  END_ADDR, A0  * Check to see if we're done
     BGT     DONE
 
+    MOVE.W  #0,PRINT_COUNT  * Reset print count to zero
+    MOVE.W  #0,LOOP_INC     * Reset loop index increment to zero
+
     CLR     D7
     MOVE.W  (A0),D7       * Get the memory at the loop index
+
+
     JSR     PRINTADDR             * Print the memory address
     JSR     BRANCHBLOCK           * Figure out what opcode this is and print
 
@@ -537,7 +541,6 @@ PUSH_EA_MODE_ID_ELSE
     BEQ     PUSH_EA_MODE_ID_ABS_DATA
 
     BRA     PRINT_ILLEGAL
-    BRA     PUSH_EA_MODE_ID_FINISH
 
 PUSH_EA_MODE_ID_IND_SHORT
     LEA     PRINT_EA_MODE_ID_IND_SHORT,A5
