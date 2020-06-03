@@ -59,7 +59,10 @@ INITIALIZE
 *  MOVE.W    #$5241, $4000   * ADDQ Opcode
 *  MOVE.W    #$D240, $4000   * ADD Opcode
 *  MOVE.W    #$D5C9, $4000   * ADDA Opcode (ADDA.L A1,A2)
-*  MOVE.L #$60000002, $4000   * BRA Opcode
+   MOVE.L    #$60000002, $4000   * BRA Opcode
+   MOVE.L    #$6E000018, $4004   * BRA Opcode
+   MOVE.W    #$6FE6, $4008
+   MOVE.W    #$67E2, $400A
 
   MOVE.L    #$4000, START_ADDR
   MOVE.L    #$5000, END_ADDR
@@ -240,13 +243,13 @@ BCC
   CMP.W     #0,D0
   BEQ       BRA
   
-  CMP.W     #E00,D0
+  CMP.W     #$E00,D0
   BEQ       BGT
   
-  CMP.W     #F00,D0
+  CMP.W     #$F00,D0
   BEQ       BLE
   
-  CMP.W     #800,D0
+  CMP.W     #$700,D0
   BEQ       BEQ 
   
   BRA       PRINT_ILLEGAL
@@ -280,6 +283,43 @@ BEQ
   BRA   BCC_CONTINUE
 
 BCC_CONTINUE
+  MOVE.L    #0,D0
+  MOVE.B    D7,D0      * Reset D0
+  CMP.B     #0,D0
+  BEQ       BCC_16     * if 16 bit displacement, print the following short
+
+  CMP.B     #$FF,D0    * if 32 bit displacement, print the following long
+  BEQ       BCC_32  
+
+  MOVE.L    #0,DATA1
+  *ROR.L     #4,D0
+  MOVE.L    D0,DATA1
+  
+  MOVE.W  #2,LOOP_INC
+  
+  BRA     BCC_END
+  
+BCC_16 
+  MOVE.L          DATA1,D1
+  SWAP            D1              * We only want the upper word
+  AND.L           #$0000FFFF,D1   * Bit mask for upper word
+  MOVE.L          D1,DATA1
+  
+  MOVE.W  #4,LOOP_INC
+  
+  BRA     BCC_END
+
+BCC_32
+  MOVE.W  #6,LOOP_INC  
+  BRA     BCC_END
+
+BCC_END
+  LEA     PRINT_EA_MODE_ID_ABS_DATA,A5
+  MOVE.L  A5, -(SP)
+  ADD.W   #4, PRINT_COUNT 
+  
+  BRA   PRINT_OPCODE
+    
 
 *-------------------------------------------------------------------------------
 *   ADD ADDA
@@ -349,7 +389,7 @@ ADDA_L
   LEA     PRINT_LONG_DESIGNATOR,A5 * Load the ".L" print subroutine
   MOVE.L  A5, -(SP)       * Put the subroutine onto the stack
   ADD.W   #4,PRINT_COUNT  * Increment Print Count by 1 long
-
+  
   BRA     ADDA_CONTINUE
 
 * ------ Word Opmode ------
@@ -839,6 +879,114 @@ PUSH_BWL_FINISH
 *        \|__|      \|__|\|__| \|__| \|__| \|__|     \|__|
 *
 *-------------------------------------------------------------------------------
+*-------------------------------------------------------------------------------
+*
+*		PRINT DATA1_WORD
+*________________________________________
+* Register Use Summary:
+*
+* D0: LOCAL VARIABLE  - Trap task designator
+*
+* D1: LOCAL VARIABLE  - DATA1 local copy
+*
+* D2: LOCAL VARIABLE  - Base in which to print
+*
+* A1: LOCAL VARIABLE  - String address
+*-------------------------------------------------------------------------------
+PRINT_DATA1_LONG
+    MOVE.L          DATA1,D1
+    MOVEQ           #15,D0
+    MOVEQ           #16,D2
+    TRAP            #15
+        
+*-------------------------------------------------------------------------------
+*
+*		PRINT DATA1_WORD
+*________________________________________
+* Register Use Summary:
+*
+* D0: LOCAL VARIABLE  - Trap task designator
+*
+* D1: LOCAL VARIABLE  - DATA1 local copy
+*
+* D2: LOCAL VARIABLE  - Base in which to print
+*
+* A1: LOCAL VARIABLE  - String address
+*-------------------------------------------------------------------------------
+PRINT_DATA1_WORD
+    MOVE.L          DATA1,D1
+    SWAP            D1              * We only want the upper word
+    AND             #$0000FFFF,D1   * Bit mask for upper word
+    MOVEQ           #15,D0
+    MOVEQ           #16,D2
+    TRAP            #15
+        
+*-------------------------------------------------------------------------------
+*
+*		PRINT BGT
+*________________________________________
+* Register Use Summary:
+*
+* D0: LOCAL VARIABLE  - Trap task designator
+*
+* A1: LOCAL VARIABLE  - String address
+*-------------------------------------------------------------------------------
+PRINT_BGT
+    LEA             STRING_BGT,A1	* Load "BGT" into A1
+    MOVE.B          #14,D0		* Set trap task to String
+    TRAP            #15			* Print "BGT "
+    BRA             PRINT_OPCODE_LOOP_RETURN
+
+*-------------------------------------------------------------------------------
+*
+*		PRINT BLE
+*________________________________________
+* Register Use Summary:
+*
+* D0: LOCAL VARIABLE  - Trap task designator
+*
+* A1: LOCAL VARIABLE  - String address
+*-------------------------------------------------------------------------------
+PRINT_BLE
+    LEA             STRING_BLE,A1	* Load "BLE" into A1
+    MOVE.B          #14,D0		* Set trap task to String
+    TRAP            #15			* Print "BLE "
+    BRA             PRINT_OPCODE_LOOP_RETURN
+
+*-------------------------------------------------------------------------------
+*
+*		PRINT BEQ
+*________________________________________
+* Register Use Summary:
+*
+* D0: LOCAL VARIABLE  - Trap task designator
+*
+* A1: LOCAL VARIABLE  - String address
+*-------------------------------------------------------------------------------
+PRINT_BEQ
+    LEA             STRING_BEQ,A1	* Load "BEQ" into A1
+    MOVE.B          #14,D0		* Set trap task to String
+    TRAP            #15			* Print "BEQ "
+    BRA             PRINT_OPCODE_LOOP_RETURN
+
+
+*-------------------------------------------------------------------------------
+*
+*		PRINT BRA
+*________________________________________
+* Register Use Summary:
+*
+* D0: LOCAL VARIABLE  - Trap task designator
+*
+* A1: LOCAL VARIABLE  - String address
+*-------------------------------------------------------------------------------
+PRINT_BRA
+    LEA             STRING_BRA,A1	* Load "BRA" into A1
+    MOVE.B          #14,D0		* Set trap task to String
+    TRAP            #15			* Print "BRA "
+    BRA             PRINT_OPCODE_LOOP_RETURN
+
+
 *-------------------------------------------------------------------------------
 *
 *		PRINT ADD
@@ -1600,10 +1748,10 @@ STRING_RTS                  DC.B    'RTS',0
 STRING_ADDQ                 DC.B    'ADDQ',0
 STRING_ADD                  DC.B    'ADD',0
 STRING_ADDA                 DC.B    'ADDA',0
-STRING_BEQ                  DC.B    'BEQ',0
-STRING_BLE                  DC.B    'BLE',0
-STRING_BRA                  DC.B    'BRA',0
-STRING_BGT                  DC.B    'BGT',0
+STRING_BEQ                  DC.B    'BEQ ',0
+STRING_BLE                  DC.B    'BLE ',0
+STRING_BRA                  DC.B    'BRA ',0
+STRING_BGT                  DC.B    'BGT ',0
 STRING_JSR                  DC.B    'JSR    ',0
 
 MISC_NUMBER  DS.B    1    * MISC_NUMBER to be printed
@@ -1613,6 +1761,8 @@ MISC_REGISTER DS.B   1
 
 
     END    START
+
+
 
 
 
