@@ -46,29 +46,6 @@ START:
 *-------------------------------------------------------------------------------
 INITIALIZE
 
-
-* ------ JSR TEST ------
-
-
-*   MOVE.W    #$4E90, $4000   * JSR (A0)
-*   MOVE.W    #$4E91, $4002   * JSR (A1)
-*   MOVE.W    #$4E92, $4004   * JSR (A2)
-*   MOVE.W    #$4E93, $4006   * JSR (A3)
-*   MOVE.W    #$4E94, $4008   * JSR (A4)
-*   MOVE.W    #$4E95, $400A   * JSR (A5)
-*   MOVE.W    #$4E96, $400C   * JSR (A6)
-*   MOVE.W    #$4E97, $400E   * JSR (A7)
-
-
-* 3:45 AM build notes:
-* This still causes an infinite loop
-* Recently fixed JSRs in the print methods, didn't seem to help
-* New suspicion is that the loop index isn't being incremented
-* Waiting on Ihsan's input on what to do with the bools, we should move them to the PUSH methods instead of the PRINT methods where they're at
-
-*   MOVE.W    #$4EB9,$4010     * JSR 1016 (1)
-*   MOVE.L    #$00001016, $4012 * JSR 1016 (2)
-
 * ------ Test Initializations ------
 
 *  MOVE.W    #$4E91, $4000   * JSR Opcode
@@ -77,7 +54,7 @@ INITIALIZE
 *  MOVE.W    #$5241, $4000   * ADDQ Opcode
 *  MOVE.W    #$D240, $4000   * ADD Opcode
 *  MOVE.W    #$D5C9, $4000   * ADDA Opcode (ADDA.L A1,A2)
-  MOVE.L #$60000002, $4000   * BRA Opcode
+*  MOVE.L #$60000002, $4000   * BRA Opcode
 
   MOVE.L    #$4000, START_ADDR
   MOVE.L    #$5000, END_ADDR
@@ -1173,6 +1150,10 @@ PRINT_ILLEGAL       * INCOMPLETE *
     TRAP            #15
 
     MOVE.L          D7,(SP)
+
+    MOVE.W  #2,LOOP_INC     * Increment the loop counter by 4 bytes
+
+
     RTS
 
 *--------------------------------------------------------------------------------
