@@ -46,10 +46,13 @@ START:
 *-------------------------------------------------------------------------------
 INITIALIZE
 
-
 * ------ Test Initializations ------
 
 *  MOVE.W    #$4E91, $4000   * JSR Opcode
+*  MOVE.W    #$4EB9,$4000      * JSR 1016 (1)
+*  MOVE.L    #$00001016, $4002 * JSR 1016 (2)
+*  (^ Add 8 to memory address if you want something after this ^)
+
 *  MOVE.W    #$4E71, $4002   * NOP Opcode
 *  MOVE.W    #$4E75, $4004   * RTS Opcode
 *  MOVE.W    #$5241, $4000   * ADDQ Opcode
@@ -246,7 +249,7 @@ BRA
 *
 *
 *-------------------------------------------------------------------------------
-ADD_ADDA
+ADD_ADDA * Figure out whether we're dealing with ADD or ADDA
   MOVE.L  D7,D0
   ROR.W   #06,D0     * Get bits 7,6 on end
   AND.B   #03,D0     * Isolate bits 7,6
@@ -257,10 +260,7 @@ ADD_ADDA
 RESUME_ADD
   MOVE.W #0,D3    * MISC_NUMBER for LOOP_INC
 
-  CMP.B #1,BOOL_HAS_DATA_W
-  BEQ   ADD_ADDA_LOOP_ADD_W
-  CMP.B #1,BOOL_HAS_DATA_L
-  BNE   ADD_ADDA_LOOP_NO_ADD
+* BOOL_HAS_DATA Block removed so it compiles!
 
   ADD.B  #2, D3
 
@@ -275,8 +275,7 @@ ADD_ADDA_LOOP_NO_ADD
   MOVE.B  D3,LOOP_INC
 
 
-  MOVE.B  #0,BOOL_HAS_DATA_W
-  MOVE.B  #0,BOOL_HAS_DATA_L
+* BOOL_HAS_DATA Block removed so things compile!
   BRA   PRINT_OPCODE
 
   MOVE D0,D7    * Just in case?
@@ -291,12 +290,11 @@ ADD_ADDA_LOOP_NO_ADD
 ADDA
   ADD.W   #2,PRINT_COUNT
 
-
   MOVE.L  D7,D0         * Reset D0
 
   LEA     PRINT_ADDA,A5    * Load the print subroutine into intermediate address
   MOVE.L  A5, -(SP)       * Put the print subroutine jump onto the stack
-  ADD.W   #2,PRINT_COUNT
+  ADD.W   #2,PRINT_COUNT  * Edit: Shouldn't this be 4?
 
   ROR.W   #$6,D0        * Get bits 9,8,7,6 on end byte
   AND.B   #7,D0         * Isolate bits 8,7,6
@@ -304,16 +302,16 @@ ADDA
   CMP.B   #3,D0         * If 8,7,6 == 011
   BEQ     ADDA_W
 
-  CMP.B   #7,D0         * If 8,7,6 == 011
+  CMP.B   #7,D0         * If 8,7,6 == 111
   BEQ     ADDA_L
 
-  BEQ     PRINT_ILLEGAL
+  BEQ     PRINT_ILLEGAL * Edit: Shouldn't this be BRA rather than BEQ?
 
 ADDA_L
 
   LEA     PUSH_BWL_LONG,A5
   MOVE.L  A5, -(SP)
-  ADD.W   #2,PRINT_COUNT
+  ADD.W   #2,PRINT_COUNT  * Edit: shouldn't this be 4?
 
   BRA     ADDA_CONTINUE
 
@@ -321,7 +319,7 @@ ADDA_W
 
   LEA     PUSH_BWL_WORD,A5
   MOVE.L  A5, -(SP)
-  ADD.W   #2,PRINT_COUNT
+  ADD.W   #2,PRINT_COUNT   * Edit: shouldn't this be 4?
 
   BRA     ADDA_CONTINUE
 
@@ -350,13 +348,13 @@ ADD
 
   LEA     PRINT_ADD,A5    * Load the print subroutine into intermediate address
   MOVE.L  A5, -(SP)       * Put the print subroutine jump onto the stack
-  ADD.W   #2,PRINT_COUNT
+  ADD.W   #2,PRINT_COUNT  * Edit: Shouldn't this be 4?
 
   MOVE.B   D0,D4            * Move bits 7,6 to D4 for BWL
 
   LEA     PUSH_BWL,A5    * Load the PUSH_BWL subroutine into intermediate address
   MOVE.L  A5, -(SP)       * Put the PUSH_BWL subroutine jump onto the stack
-  ADD.W   #2,PRINT_COUNT
+  ADD.W   #2,PRINT_COUNT  * Edit: Shouldn't this be 4?
 
   JSR     PUSH_EA_MODE_ID
   MOVE.W  #4,LOOP_INC     * Increment the loop counter by 4 bytes
@@ -464,14 +462,69 @@ JSR
   MOVE.L  A5, -(SP)       * Put the print subroutine jump onto the stack
   ADD.W           #4,PRINT_COUNT
 
-  JSR     PUSH_EA_MODE_ID
+* ---- Custom Branching Block ----
+* Supported Modes: (An), Indirect short, Indirect Long
 
-  MOVE.W  #2,LOOP_INC     * Increment the loop counter by 4 bytes
+  CLR       D0
+  MOVE.B    D7,D0 * Copy opcode into local variable
+  AND.B     #$38,D0 * Mask D0 with 0111000 to get MODE bits only
+  ASR.B   #3,D0	* Shift the result so D0 ranges between 000 and 111
+
+  CMP.B   #2,D0			*010 -> Address Register   Indirect
+  BEQ   JSR_PUSH_EA_MODE_ID_AN_INDIRECT
+  CMP.B   #7,D0			*111 -> All Data Operations
+  BEQ     JSR_EA_MODE_ELSE
+
+  BRA     PRINT_ILLEGAL
+
+
+*________________________________________
+* Handle Data Branching Logic
+* Only short and long indirect allowed
+*----------------------------------------
+JSR_EA_MODE_ELSE
+
+  CLR     D0
+  MOVE.B  D7,D0
+  AND.B   #7,D0
+
+  CMP.B   #0,D0
+  BEQ     JSR_PUSH_EA_MODE_ID_IND_SHORT
+
+  CMP.B   #1,D0
+  BEQ     JSR_PUSH_EA_MODE_ID_IND_LONG
+
+  BRA     PRINT_ILLEGAL
+
+*________________________________________
+* Jump directly into the middle of
+* the PUSH_EA_MODE subroutine
+*----------------------------------------
+JSR_PUSH_EA_MODE_ID_AN_INDIRECT
+  JSR   PUSH_EA_MODE_ID_AN_INDIRECT
+  BRA   JSR_FINISH
+
+*________________________________________
+* Jump directly into the middle of
+* the PUSH_EA_MODE subroutine
+*----------------------------------------
+JSR_PUSH_EA_MODE_ID_IND_SHORT
+  JSR   PUSH_EA_MODE_ID_IND_SHORT
+  BRA   JSR_FINISH
+
+*________________________________________
+* Jump directly into the middle of
+* the PUSH_EA_MODE subroutine
+*----------------------------------------
+JSR_PUSH_EA_MODE_ID_IND_LONG
+  JSR   PUSH_EA_MODE_ID_IND_LONG
+  BRA   JSR_FINISH
+
+JSR_FINISH
+
+  ADD.W   #2,LOOP_INC     * Increment the loop counter by 1 word
 
   BRA     PRINT_OPCODE    * Always put this at the end
-
-  RTS
-
 
 *-------------------------------------------------------------------------------
 *   PRINT OPCODE
@@ -628,17 +681,17 @@ PUSH_EA_MODE_ID_ELSE
 
 PUSH_EA_MODE_ID_IND_SHORT
     LEA     PRINT_EA_MODE_ID_IND_SHORT,A5
-    MOVE.B          #1,BOOL_HAS_DATA_W
+    ADD.W           #4, LOOP_INC * Adjust the Loop increment to skip the data
     BRA     PUSH_EA_MODE_ID_FINISH
 
 PUSH_EA_MODE_ID_IND_LONG
     LEA     PRINT_EA_MODE_ID_IND_LONG,A5
-    MOVE.B          #1,BOOL_HAS_DATA_L
+    ADD.W           #8,LOOP_INC * Adjust the Loop increment to skip the data
     BRA     PUSH_EA_MODE_ID_FINISH
 
 PUSH_EA_MODE_ID_ABS_DATA
     LEA     PRINT_EA_MODE_ID_ABS_DATA,A5
-    MOVE.B          #1,BOOL_HAS_DATA_L
+    ADD.W           #8,LOOP_INC * Adjust the Loop increment to skip the data
     BRA     PUSH_EA_MODE_ID_FINISH
 
 *________________________________________
@@ -1126,7 +1179,25 @@ PRINT_EA_MODE_ID_ABS_DATA
 PRINT_JSR
     LEA             STRING_JSR,A1	* Load "JSR" into A1
     MOVE.B          #14,D0		* Set trap task to String
-    TRAP            #15			* Print ", "
+    TRAP            #15
+    BRA             PRINT_OPCODE_LOOP_RETURN
+
+
+
+*-------------------------------------------------------------------------------
+*
+*		PRINT FOURSPACE
+*________________________________________
+* Register Use Summary:
+*
+* D0: LOCAL VARIABLE  - Trap task designator
+*
+* A1: LOCAL VARIABLE  - String address
+*-------------------------------------------------------------------------------
+PRINT_FOURSPACE
+    LEA             STRING_FOURSPACE,A1 * Load four spaces into A1
+    MOVE.B          #14,D0              * Set trap task to String
+    TRAP            #15
     BRA             PRINT_OPCODE_LOOP_RETURN
 
 *-------------------------------------------------------------------------------
@@ -1242,14 +1313,13 @@ STRING_RTS                  DC.B    'RTS',0
 STRING_ADDQ                 DC.B    'ADDQ',0
 STRING_ADD                  DC.B    'ADD',0
 STRING_ADDA                 DC.B    'ADDA',0
-STRING_JSR                  DC.B    'JSR',0
+STRING_JSR                  DC.B    'JSR    ',0
 
 MISC_NUMBER  DS.B    1    * MISC_NUMBER to be printed
 MISC_OPCODE  DS.W    1
 MISC_REGISTER DS.B   1
 
-BOOL_HAS_DATA_W             DS.B    1
-BOOL_HAS_DATA_L             DS.B    1
+
 
     END    START
 
