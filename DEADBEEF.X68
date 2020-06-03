@@ -236,49 +236,14 @@ BCC
   AND.W     #$0F00,D0  * Isolate bits 11-8
   CMP.W     #0,D0
   BEQ       BRA
-  
-  CMP.W     #E00,D0
-  BEQ       BGT
-  
-  CMP.W     #F00,D0
-  BEQ       BLE
-  
-  CMP.W     #800,D0
-  BEQ       BEQ 
-  
-  BRA       PRINT_ILLEGAL
-  
+
+*-------------------------------------------------------------------------------
+*   BRA
+*
+*
+*-------------------------------------------------------------------------------
 BRA
-  LEA     PRINT_BRA,A5    * Load the print subroutine into intermediate address
-  MOVE.L  A5, -(SP)       * Put the print subroutine jump onto the stack
-  ADD.W   #4,PRINT_COUNT  
 
-  BRA   BCC_CONTINUE
-
-BGT
-  LEA     PRINT_BGT,A5    * Load the print subroutine into intermediate address
-  MOVE.L  A5, -(SP)       * Put the print subroutine jump onto the stack
-  ADD.W   #4,PRINT_COUNT    
-  
-  BRA   BCC_CONTINUE
-
-BLE
-  LEA     PRINT_BLE,A5    * Load the print subroutine into intermediate address
-  MOVE.L  A5, -(SP)       * Put the print subroutine jump onto the stack
-  ADD.W   #4,PRINT_COUNT  
-
-  BRA   BCC_CONTINUE
-
-BEQ
-  LEA     PRINT_BEQ,A5    * Load the print subroutine into intermediate address
-  MOVE.L  A5, -(SP)       * Put the print subroutine jump onto the stack
-  ADD.W   #4,PRINT_COUNT  
-  
-  BRA   BCC_CONTINUE
-
-BCC_CONTINUE
-  
-    
 *-------------------------------------------------------------------------------
 *   ADD ADDA
 *
@@ -329,7 +294,7 @@ ADDA
 
   LEA     PRINT_ADDA,A5    * Load the print subroutine into intermediate address
   MOVE.L  A5, -(SP)       * Put the print subroutine jump onto the stack
-  ADD.W   #4,PRINT_COUNT  * Edit: Shouldn't this be 4?
+  ADD.W   #2,PRINT_COUNT  * Edit: Shouldn't this be 4?
 
   ROR.W   #$6,D0        * Get bits 9,8,7,6 on end byte
   AND.B   #7,D0         * Isolate bits 8,7,6
@@ -383,7 +348,7 @@ ADD
 
   LEA     PRINT_ADD,A5    * Load the print subroutine into intermediate address
   MOVE.L  A5, -(SP)       * Put the print subroutine jump onto the stack
-  ADD.W   #4,PRINT_COUNT  * Edit: Shouldn't this be 4?
+  ADD.W   #2,PRINT_COUNT  * Edit: Shouldn't this be 4?
 
   MOVE.B   D0,D4            * Move bits 7,6 to D4 for BWL
 
@@ -822,70 +787,6 @@ PUSH_BWL_FINISH
 *        \|__|      \|__|\|__| \|__| \|__| \|__|     \|__|
 *
 *-------------------------------------------------------------------------------
-*-------------------------------------------------------------------------------
-*
-*		PRINT BEQ
-*________________________________________
-* Register Use Summary:
-*
-* D0: LOCAL VARIABLE  - Trap task designator
-*
-* A1: LOCAL VARIABLE  - String address
-*-------------------------------------------------------------------------------
-PRINT_BEQ
-    LEA             STRING_BEQ,A1	* Load "BEQ" into A1
-    MOVE.B          #14,D0		* Set trap task to String
-    TRAP            #15			* Print "BEQ "
-    BRA             PRINT_OPCODE_LOOP_RETURN
-
-*-------------------------------------------------------------------------------
-*
-*		PRINT BLE
-*________________________________________
-* Register Use Summary:
-*
-* D0: LOCAL VARIABLE  - Trap task designator
-*
-* A1: LOCAL VARIABLE  - String address
-*-------------------------------------------------------------------------------
-PRINT_BLE
-    LEA             STRING_BLE,A1	* Load "BLE" into A1
-    MOVE.B          #14,D0		* Set trap task to String
-    TRAP            #15			* Print "BLE "
-    BRA             PRINT_OPCODE_LOOP_RETURN
-
-*-------------------------------------------------------------------------------
-*
-*		PRINT BGT
-*________________________________________
-* Register Use Summary:
-*
-* D0: LOCAL VARIABLE  - Trap task designator
-*
-* A1: LOCAL VARIABLE  - String address
-*-------------------------------------------------------------------------------
-PRINT_BGT
-    LEA             STRING_BGT,A1	* Load "BGT " into A1
-    MOVE.B          #14,D0		* Set trap task to String
-    TRAP            #15			* Print "BGT  "
-    BRA             PRINT_OPCODE_LOOP_RETURN
-
-*-------------------------------------------------------------------------------
-*
-*		PRINT BRA
-*________________________________________
-* Register Use Summary:
-*
-* D0: LOCAL VARIABLE  - Trap task designator
-*
-* A1: LOCAL VARIABLE  - String address
-*-------------------------------------------------------------------------------
-PRINT_BRA
-    LEA             STRING_BRA,A1	* Load "BRA" into A1
-    MOVE.B          #14,D0		* Set trap task to String
-    TRAP            #15			* Print "BRA "
-    BRA             PRINT_OPCODE_LOOP_RETURN
-
 *-------------------------------------------------------------------------------
 *
 *		PRINT ADD
@@ -1412,10 +1313,6 @@ STRING_RTS                  DC.B    'RTS',0
 STRING_ADDQ                 DC.B    'ADDQ',0
 STRING_ADD                  DC.B    'ADD',0
 STRING_ADDA                 DC.B    'ADDA',0
-STRING_BEQ                  DC.B    'BEQ',0
-STRING_BLE                  DC.B    'BLE',0
-STRING_BRA                  DC.B    'BRA',0
-STRING_BGT                  DC.B    'BGT',0
 STRING_JSR                  DC.B    'JSR    ',0
 
 MISC_NUMBER  DS.B    1    * MISC_NUMBER to be printed
@@ -1425,7 +1322,6 @@ MISC_REGISTER DS.B   1
 
 
     END    START
-
 
 
 
