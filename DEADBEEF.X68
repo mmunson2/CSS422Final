@@ -22,6 +22,7 @@ CR    EQU   $0D
 LF    EQU   $0A
 
 PRINT_COUNT    DS.W    1    *How many print statements are sitting in the stack
+PRINT_OPCODE_LOOP_INDEX  DS.W  1   * The print loop index
 STACK_BASE     DS.L    1    *Where we begin putting print calls into stack
 
 LOOP_INC       DS.W    1    * How many words to skip to find the next opcode
@@ -67,6 +68,8 @@ INITIALIZE
 * ------ Standard Initializations ------
   MOVE.W    #0, PRINT_COUNT
   MOVE.B    #0, MISC_NUMBER
+
+  * JSR GET_INPUT
 
   MOVEA.L  START_ADDR,A0
   MOVE.L   A0,LOOP_INDEX * Both A0 and LOOP_INDEX contain the start address
@@ -188,7 +191,7 @@ BRANCHBLOCK
 
 * ---- ADDA ----
   CLR.L   D0
-  MOVE.L  D7,D0
+  MOVE.L  D7,D0   *DXXX
   AND.W   #$F000,D0
   CMP.W   #$D000,D0
   BEQ     ADD_ADDA
@@ -236,13 +239,47 @@ BCC
   AND.W     #$0F00,D0  * Isolate bits 11-8
   CMP.W     #0,D0
   BEQ       BRA
-
-*-------------------------------------------------------------------------------
-*   BRA
-*
-*
-*-------------------------------------------------------------------------------
+  
+  CMP.W     #E00,D0
+  BEQ       BGT
+  
+  CMP.W     #F00,D0
+  BEQ       BLE
+  
+  CMP.W     #800,D0
+  BEQ       BEQ 
+  
+  BRA       PRINT_ILLEGAL
+  
 BRA
+  LEA     PRINT_BRA,A5    * Load the print subroutine into intermediate address
+  MOVE.L  A5, -(SP)       * Put the print subroutine jump onto the stack
+  ADD.W   #4,PRINT_COUNT  
+
+  BRA   BCC_CONTINUE
+
+BGT
+  LEA     PRINT_BGT,A5    * Load the print subroutine into intermediate address
+  MOVE.L  A5, -(SP)       * Put the print subroutine jump onto the stack
+  ADD.W   #4,PRINT_COUNT    
+  
+  BRA   BCC_CONTINUE
+
+BLE
+  LEA     PRINT_BLE,A5    * Load the print subroutine into intermediate address
+  MOVE.L  A5, -(SP)       * Put the print subroutine jump onto the stack
+  ADD.W   #4,PRINT_COUNT  
+
+  BRA   BCC_CONTINUE
+
+BEQ
+  LEA     PRINT_BEQ,A5    * Load the print subroutine into intermediate address
+  MOVE.L  A5, -(SP)       * Put the print subroutine jump onto the stack
+  ADD.W   #4,PRINT_COUNT  
+  
+  BRA   BCC_CONTINUE
+
+BCC_CONTINUE
 
 *-------------------------------------------------------------------------------
 *   ADD ADDA
@@ -255,12 +292,16 @@ ADD_ADDA * Figure out whether we're dealing with ADD or ADDA
   AND.B   #03,D0     * Isolate bits 7,6
   CMP.B   #03,D0
   BEQ   ADDA
-  BRA   ADD
+
+  BRA   ADD          * Else it's ADD
+*-------------------------------------------------------------------------------
+
+
+
 
 RESUME_ADD
   MOVE.W #0,D3    * MISC_NUMBER for LOOP_INC
 
-* BOOL_HAS_DATA Block removed so it compiles!
 
   ADD.B  #2, D3
 
@@ -274,11 +315,7 @@ ADD_ADDA_LOOP_NO_ADD
 
   MOVE.B  D3,LOOP_INC
 
-
-* BOOL_HAS_DATA Block removed so things compile!
   BRA   PRINT_OPCODE
-
-  MOVE D0,D7    * Just in case?
 
 
   RTS
@@ -288,13 +325,12 @@ ADD_ADDA_LOOP_NO_ADD
 *
 *-------------------------------------------------------------------------------
 ADDA
-  ADD.W   #2,PRINT_COUNT
 
   MOVE.L  D7,D0         * Reset D0
 
   LEA     PRINT_ADDA,A5    * Load the print subroutine into intermediate address
   MOVE.L  A5, -(SP)       * Put the print subroutine jump onto the stack
-  ADD.W   #2,PRINT_COUNT  * Edit: Shouldn't this be 4?
+  ADD.W   #4,PRINT_COUNT  * Increment Print Count by 1 long
 
   ROR.W   #$6,D0        * Get bits 9,8,7,6 on end byte
   AND.B   #7,D0         * Isolate bits 8,7,6
@@ -305,39 +341,55 @@ ADDA
   CMP.B   #7,D0         * If 8,7,6 == 111
   BEQ     ADDA_L
 
-  BEQ     PRINT_ILLEGAL * Edit: Shouldn't this be BRA rather than BEQ?
+  BRA     PRINT_ILLEGAL
 
+* ------ Long Opmode ------
 ADDA_L
 
-  LEA     PUSH_BWL_LONG,A5
-  MOVE.L  A5, -(SP)
-  ADD.W   #2,PRINT_COUNT  * Edit: shouldn't this be 4?
+  LEA     PRINT_LONG_DESIGNATOR,A5 * Load the ".L" print subroutine
+  MOVE.L  A5, -(SP)       * Put the subroutine onto the stack
+  ADD.W   #4,PRINT_COUNT  * Increment Print Count by 1 long
 
   BRA     ADDA_CONTINUE
 
+* ------ Word Opmode ------
 ADDA_W
 
-  LEA     PUSH_BWL_WORD,A5
-  MOVE.L  A5, -(SP)
-  ADD.W   #2,PRINT_COUNT   * Edit: shouldn't this be 4?
+  LEA     PRINT_WORD_DESIGNATOR,A5 * Load the ".W" print subroutine
+  MOVE.L  A5, -(SP)         * Put the subroutine onto the stack
+  ADD.W   #4,PRINT_COUNT    * Increment Print Count by 1 long
 
   BRA     ADDA_CONTINUE
 
+* ------ Continue ------
 ADDA_CONTINUE
 
+* Push the effective address print subroutine onto the stack
   JSR     PUSH_EA_MODE_ID
-  MOVE.W  #4,LOOP_INC     * Increment the loop counter by 4 bytes
 
-  MOVE D7,D0    * Reset D0
 
-  ASR.L   #$8,D7
-  ASR.L   #$1,D7
+  LEA     PRINT_COMMA,A5   * Load the print subroutine
+  MOVE.L  A5, -(SP)       * Put the print subroutine jump onto the stack
+  ADD.W   #4,PRINT_COUNT  * Increment Print Count by 1 long
 
-  AND.B   #$7,D7
-  JSR     PUSH_EA_MODE_ID_AN
-  MOVE.W  #4,LOOP_INC     * Increment the loop counter by 4 bytes
 
-  BRA   RESUME_ADD
+
+* Reset and push the address register print subroutine onto the stack
+  MOVE.L D7,D0    * Reset D0
+
+  ASR.L   #$8,D0
+  ASR.L   #$1,D0
+  AND.B   #$7,D0
+
+  MOVE.B  D0,MISC_NUMBER
+
+  LEA     PRINT_MISC_NUMBER_AS_ADDRESS,A5   * Load the print subroutine
+  MOVE.L  A5, -(SP)       * Put the print subroutine jump onto the stack
+  ADD.W   #4,PRINT_COUNT  * Increment Print Count by 1 long
+
+  ADD.W  #2,LOOP_INC     * Increment the loop counter by 4 bytes
+
+  BRA   PRINT_OPCODE
 
 *-------------------------------------------------------------------------------
 *   ADD
@@ -441,7 +493,7 @@ ADDQ
   MOVE.B  D0,MISC_NUMBER
   LEA     PRINT_MISC_NUMBER,A5
   MOVE.L  A5, -(SP)
-  ADD.W   #2, PRINT_COUNT
+  ADD.W   #4, PRINT_COUNT
 
   SWAP    D7              * Reset D7 for EA MODE
   JSR     PUSH_EA_MODE_ID
@@ -532,23 +584,23 @@ JSR_FINISH
 
 PRINT_OPCODE
 
-  CLR     D2
-  CLR     D3
-
-  MOVE.W   PRINT_COUNT,D3
   MOVE.L  STACK_BASE,SP * Put the stack back to where it was when we started
+  MOVE.W  #0,PRINT_OPCODE_LOOP_INDEX
 
 PRINT_OPCODE_LOOP
 
-  CMP.B   D3,D2
+  MOVEA.W   PRINT_OPCODE_LOOP_INDEX,A1
+
+  CMPA.W   PRINT_COUNT,A1 * Check if we're done
   BGE     PRINT_OPCODE_LOOP_FINISH
 
-  MOVE.L  -(SP),A1  * Pop the next item on the stack and put it in A1
-  JMP     (A1)        * Jump to the routine we stored on the stack
+  MOVE.L  -(SP),A2  * Pop the next item on the stack and put it in A1
+  JMP     (A2)        * Jump to the routine we stored on the stack
 
 PRINT_OPCODE_LOOP_RETURN * Print methods come back here
 
-  ADDQ    #4,D2     * Stack entries are 4 bytes, so add this as loop index
+  ADD.W    #4,PRINT_OPCODE_LOOP_INDEX
+
   BRA     PRINT_OPCODE_LOOP
 
 PRINT_OPCODE_LOOP_FINISH
@@ -837,6 +889,37 @@ PRINT_ADDA
 *-------------------------------------------------------------------------------
 PRINT_MISC_NUMBER
     CLR D1
+
+    MOVE.B  #15,D0
+    MOVE.B  MISC_NUMBER,D1
+    MOVE.B  #10,D2
+    TRAP #15
+
+    BRA     PRINT_OPCODE_LOOP_RETURN
+
+*-------------------------------------------------------------------------------
+*
+*		PRINT MISC_NUMBER_AS_ADDRESS
+*________________________________________
+* Register Use Summary:
+*
+* D0: LOCAL VARIABLE  - Trap task designator
+*
+* D1: LOCAL VARIABLE  - MISC_NUMBER to be printed
+*
+* D2: LOCAL VARIABLE  - Base of MISC_NUMBER
+*
+* A1: LOCAL VARIABLE  - String address
+*-------------------------------------------------------------------------------
+PRINT_MISC_NUMBER_AS_ADDRESS
+
+    LEA             STRING_A,A1
+    MOVE.B          #14,D0
+    TRAP            #15
+
+    CLR D0
+    CLR.L D1
+    CLR D2
 
     MOVE.B  #15,D0
     MOVE.B  MISC_NUMBER,D1
@@ -1183,7 +1266,6 @@ PRINT_JSR
     BRA             PRINT_OPCODE_LOOP_RETURN
 
 
-
 *-------------------------------------------------------------------------------
 *
 *		PRINT FOURSPACE
@@ -1196,6 +1278,23 @@ PRINT_JSR
 *-------------------------------------------------------------------------------
 PRINT_FOURSPACE
     LEA             STRING_FOURSPACE,A1 * Load four spaces into A1
+    MOVE.B          #14,D0              * Set trap task to String
+    TRAP            #15
+    BRA             PRINT_OPCODE_LOOP_RETURN
+
+
+*-------------------------------------------------------------------------------
+*
+*		PRINT COMMA
+*________________________________________
+* Register Use Summary:
+*
+* D0: LOCAL VARIABLE  - Trap task designator
+*
+* A1: LOCAL VARIABLE  - String address
+*-------------------------------------------------------------------------------
+PRINT_COMMA
+    LEA             STRING_COMMA,A1 * Load the comma into A1
     MOVE.B          #14,D0              * Set trap task to String
     TRAP            #15
     BRA             PRINT_OPCODE_LOOP_RETURN
@@ -1273,8 +1372,190 @@ PRINT_IMMEDIATE_NEWLINE
 
   RTS
 
+*-----------------------------------------------------------------
+* GET_INPUT
+*
+* Called before anything else, clears what it uses
+*-----------------------------------------------------------------
+GET_INPUT
 
+    MOVE.L  #0,START_ADDR
+    MOVE.L  #0,END_ADDR
 
+    CLR     D3
+
+    LEA     STRING_ENTER_START,A1
+    MOVE.B  #13,D0
+    TRAP    #15
+
+    MOVEA   #0,A1
+    MOVE.B  #2,D0
+    TRAP    #15
+
+    JSR     STRING_TO_HEX
+    MOVE.L  D3,START_ADDR
+
+    CLR     D3
+
+    LEA     STRING_ENTER_END,A1
+    MOVE.B  #13,D0
+    TRAP    #15
+
+    MOVEA   #0,A1
+    MOVE.B  #2,D0
+    TRAP    #15
+
+    JSR     STRING_TO_HEX
+    MOVE.L  D3,END_ADDR
+
+    MOVE.L  START_ADDR,D2
+    CMP.L   D2,D3
+    BLT     OUT_OF_ORDER
+
+    CLR     D0
+    CLR     D1
+    CLR     D2
+    CLR     D3
+
+    RTS
+
+OUT_OF_ORDER
+
+    LEA     STRING_OUT_OF_ORDER,A1
+    MOVE.B  #13,D0
+    TRAP    #15
+
+    JMP     GET_INPUT
+
+STRING_TO_HEX
+
+    CLR     D2
+    CMP.B   #0,D1
+    BEQ     STH_END
+    JSR     STH_SET_VALUE
+    JMP     STRING_TO_HEX
+
+STH_UPDATE
+
+    SUB.W   #1,D1
+    ADDA.W  #1,A1
+    RTS
+
+STH_END     RTS
+
+STH_BAD_INPUT
+
+    LEA     STRING_INVALID_INPUT,A1
+    MOVE.B  #13,D0
+    TRAP    #15
+
+    MOVEA   #0,A1
+    MOVE.B  #2,D0
+    TRAP    #15
+
+    RTS
+
+STH_SET_VALUE
+
+    MOVE.L  #$0,D2
+    CMP.B   #$30,(A1)
+    BEQ     STH_SHIFT_BITS
+
+    MOVE.L  #$1,D2
+    CMP.B   #$31,(A1)
+    BEQ     STH_SHIFT_BITS
+
+    MOVE.L  #$2,D2
+    CMP.B   #$32,(A1)
+    BEQ     STH_SHIFT_BITS
+
+    MOVE.L  #$3,D2
+    CMP.B   #$33,(A1)
+    BEQ     STH_SHIFT_BITS
+
+    MOVE.L  #$4,D2
+    CMP.B   #$34,(A1)
+    BEQ     STH_SHIFT_BITS
+
+    MOVE.L  #$5,D2
+    CMP.B   #$35,(A1)
+    BEQ     STH_SHIFT_BITS
+
+    MOVE.L  #$6,D2
+    CMP.B   #$36,(A1)
+    BEQ     STH_SHIFT_BITS
+
+    MOVE.L  #$7,D2
+    CMP.B   #$37,(A1)
+    BEQ     STH_SHIFT_BITS
+
+    MOVE.L  #$8,D2
+    CMP.B   #$38,(A1)
+    BEQ     STH_SHIFT_BITS
+
+    MOVE.L  #$9,D2
+    CMP.B   #$39,(A1)
+    BEQ     STH_SHIFT_BITS
+
+    MOVE.L  #$A,D2
+    CMP.B   #$41,(A1)
+    BEQ     STH_SHIFT_BITS
+
+    MOVE.L  #$B,D2
+    CMP.B   #$42,(A1)
+    BEQ     STH_SHIFT_BITS
+
+    MOVE.L  #$C,D2
+    CMP.B   #$43,(A1)
+    BEQ     STH_SHIFT_BITS
+
+    MOVE.L  #$D,D2
+    CMP.B   #$44,(A1)
+    BEQ     STH_SHIFT_BITS
+
+    MOVE.L  #$E,D2
+    CMP.B   #$45,(A1)
+    BEQ     STH_SHIFT_BITS
+
+    MOVE.L  #$F,D2
+    CMP.B   #$46,(A1)
+    BEQ     STH_SHIFT_BITS
+
+    JMP     STH_BAD_INPUT
+
+STH_SHIFT_BITS
+
+    CMP.B   #1,D1
+    BEQ     STH_INCREASE_VALUE
+
+    ROL.L   #4,D2
+    CMP.B   #2,D1
+    BEQ     STH_INCREASE_VALUE
+
+    ROL.L   #4,D2
+    CMP.B   #3,D1
+    BEQ     STH_INCREASE_VALUE
+
+    ROL.L   #4,D2
+    CMP.B   #4,D1
+    BEQ     STH_INCREASE_VALUE
+
+    ROL.L   #4,D2
+    CMP.B   #5,D1
+    BEQ     STH_INCREASE_VALUE
+
+    ROL.L   #4,D2
+    CMP.B   #6,D1
+    BEQ     STH_INCREASE_VALUE
+
+    JMP     STH_BAD_INPUT
+
+STH_INCREASE_VALUE
+
+    ADD.L   D2,D3
+    JMP     STH_UPDATE
+
+* END OF GET_INPUT -----------------------------------------------
 
     SIMHALT
 
@@ -1290,7 +1571,13 @@ PRINT_IMMEDIATE_NEWLINE
 *-------------------------------------------------------------------------------
 
 
-* Put variables and constants here
+* Data for GET_INPUT
+STRING_ENTER_START      DC.B    'Please enter a start address, eg. 4A6C',0
+STRING_ENTER_END        DC.B    'Please enter a end address, eg. 5D3F',0
+STRING_INVALID_INPUT    DC.B    'INVALID INPUT, must be a valid EASy68k hexidecimal memory address',0
+STRING_OUT_OF_ORDER     DC.B    'Start address must be less than end address',0
+
+
 STRING_ILLEGAL              DC.B    'ILLEGAL',0
 STRING_BYTE_DESIGNATOR      DC.B    '.B ',0
 STRING_WORD_DESIGNATOR      DC.B    '.W ',0
@@ -1313,6 +1600,10 @@ STRING_RTS                  DC.B    'RTS',0
 STRING_ADDQ                 DC.B    'ADDQ',0
 STRING_ADD                  DC.B    'ADD',0
 STRING_ADDA                 DC.B    'ADDA',0
+STRING_BEQ                  DC.B    'BEQ',0
+STRING_BLE                  DC.B    'BLE',0
+STRING_BRA                  DC.B    'BRA',0
+STRING_BGT                  DC.B    'BGT',0
 STRING_JSR                  DC.B    'JSR    ',0
 
 MISC_NUMBER  DS.B    1    * MISC_NUMBER to be printed
@@ -1322,6 +1613,7 @@ MISC_REGISTER DS.B   1
 
 
     END    START
+
 
 
 
