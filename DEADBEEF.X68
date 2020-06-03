@@ -46,6 +46,27 @@ START:
 *-------------------------------------------------------------------------------
 INITIALIZE
 
+
+* ------ JSR TEST ------
+
+* Matthew's current JSR test, sorry if pushed by accident!
+   MOVE.W    #$4E90, $4000   * JSR (A0)
+   MOVE.W    #$4E91, $4002   * JSR (A1)
+   MOVE.W    #$4E92, $4004   * JSR (A2)
+   MOVE.W    #$4E93, $4006   * JSR (A3)
+   MOVE.W    #$4E94, $4008   * JSR (A4)
+   MOVE.W    #$4E95, $400A   * JSR (A5)
+   MOVE.W    #$4E96, $400C   * JSR (A6)
+   MOVE.W    #$4E97, $400E   * JSR (A7)
+
+
+* 3:45 AM build notes:
+* Waiting on Ihsan's input on what to do with the bools, we should move them to the PUSH methods instead of the PRINT methods where they're at
+
+   MOVE.W    #$4EB9,$4010     * JSR 1016 (1)
+   MOVE.L    #$00001016, $4012 * JSR 1016 (2)
+
+
 * ------ Test Initializations ------
 
 *  MOVE.W    #$4E91, $4000   * JSR Opcode
@@ -627,14 +648,17 @@ PUSH_EA_MODE_ID_ELSE
 
 PUSH_EA_MODE_ID_IND_SHORT
     LEA     PRINT_EA_MODE_ID_IND_SHORT,A5
+    MOVE.B          #1,BOOL_HAS_DATA_W
     BRA     PUSH_EA_MODE_ID_FINISH
 
 PUSH_EA_MODE_ID_IND_LONG
     LEA     PRINT_EA_MODE_ID_IND_LONG,A5
+    MOVE.B          #1,BOOL_HAS_DATA_L
     BRA     PUSH_EA_MODE_ID_FINISH
 
 PUSH_EA_MODE_ID_ABS_DATA
     LEA     PRINT_EA_MODE_ID_ABS_DATA,A5
+    MOVE.B          #1,BOOL_HAS_DATA_L
     BRA     PUSH_EA_MODE_ID_FINISH
 
 *________________________________________
@@ -1053,8 +1077,6 @@ PRINT_EA_MODE_ID_IND_SHORT
     MOVEQ           #16,D2
     TRAP            #15
 
-    MOVE.B          #1,BOOL_HAS_DATA_W
-
     BRA             PRINT_OPCODE_LOOP_RETURN
 
 *-------------------------------------------------------------------------------
@@ -1079,8 +1101,6 @@ PRINT_EA_MODE_ID_IND_LONG
     MOVEQ           #15,D0
     MOVEQ           #16,D2
     TRAP            #15
-
-    MOVE.B          #1,BOOL_HAS_DATA_L
 
     BRA             PRINT_OPCODE_LOOP_RETURN
 
@@ -1110,8 +1130,6 @@ PRINT_EA_MODE_ID_ABS_DATA
     MOVEQ           #15,D0
     MOVEQ           #16,D2
     TRAP            #15
-
-    MOVE.B          #1,BOOL_HAS_DATA_L
 
     BRA             PRINT_OPCODE_LOOP_RETURN
 
