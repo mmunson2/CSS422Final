@@ -47,26 +47,6 @@ START:
 INITIALIZE
 
 
-* ------ JSR TEST ------
-
-* Matthew's current JSR test, sorry if pushed by accident!
-   MOVE.W    #$4E90, $4000   * JSR (A0)
-   MOVE.W    #$4E91, $4002   * JSR (A1)
-   MOVE.W    #$4E92, $4004   * JSR (A2)
-   MOVE.W    #$4E93, $4006   * JSR (A3)
-   MOVE.W    #$4E94, $4008   * JSR (A4)
-   MOVE.W    #$4E95, $400A   * JSR (A5)
-   MOVE.W    #$4E96, $400C   * JSR (A6)
-   MOVE.W    #$4E97, $400E   * JSR (A7)
-
-
-* 3:45 AM build notes:
-* Waiting on Ihsan's input on what to do with the bools, we should move them to the PUSH methods instead of the PRINT methods where they're at
-
-   MOVE.W    #$4EB9,$4010     * JSR 1016 (1)
-   MOVE.L    #$00001016, $4012 * JSR 1016 (2)
-
-
 * ------ Test Initializations ------
 
 *  MOVE.W    #$4E91, $4000   * JSR Opcode
