@@ -67,6 +67,8 @@ INITIALIZE
 * ------ Standard Initializations ------
   MOVE.W    #0, PRINT_COUNT
   MOVE.B    #0, MISC_NUMBER
+  
+  * JSR GET_INPUT
 
   MOVEA.L  START_ADDR,A0
   MOVE.L   A0,LOOP_INDEX * Both A0 and LOOP_INDEX contain the start address
@@ -1273,8 +1275,190 @@ PRINT_IMMEDIATE_NEWLINE
 
   RTS
 
+*-----------------------------------------------------------------
+* GET_INPUT
+*
+* Called before anything else, clears what it uses
+*-----------------------------------------------------------------
+GET_INPUT
 
+    MOVE.L  #0,START_ADDR
+    MOVE.L  #0,END_ADDR
+    
+    CLR     D3
+    
+    LEA     STRING_ENTER_START,A1
+    MOVE.B  #13,D0
+    TRAP    #15
+    
+    MOVEA   #0,A1
+    MOVE.B  #2,D0
+    TRAP    #15
+    
+    JSR     STRING_TO_HEX
+    MOVE.L  D3,START_ADDR
+    
+    CLR     D3
+    
+    LEA     STRING_ENTER_END,A1
+    MOVE.B  #13,D0
+    TRAP    #15
+    
+    MOVEA   #0,A1
+    MOVE.B  #2,D0
+    TRAP    #15
+    
+    JSR     STRING_TO_HEX
+    MOVE.L  D3,END_ADDR
+    
+    MOVE.L  START_ADDR,D2
+    CMP.L   D2,D3
+    BLT     OUT_OF_ORDER
+    
+    CLR     D0
+    CLR     D1
+    CLR     D2
+    CLR     D3
+    
+    RTS
+    
+OUT_OF_ORDER
 
+    LEA     STRING_OUT_OF_ORDER,A1
+    MOVE.B  #13,D0
+    TRAP    #15
+    
+    JMP     GET_INPUT
+    
+STRING_TO_HEX
+
+    CLR     D2
+    CMP.B   #0,D1
+    BEQ     STH_END
+    JSR     STH_SET_VALUE
+    JMP     STRING_TO_HEX
+
+STH_UPDATE
+
+    SUB.W   #1,D1
+    ADDA.W  #1,A1
+    RTS
+            
+STH_END     RTS
+
+STH_BAD_INPUT
+
+    LEA     STRING_INVALID_INPUT,A1
+    MOVE.B  #13,D0
+    TRAP    #15
+    
+    MOVEA   #0,A1
+    MOVE.B  #2,D0
+    TRAP    #15
+    
+    RTS
+
+STH_SET_VALUE
+
+    MOVE.L  #$0,D2
+    CMP.B   #$30,(A1)
+    BEQ     STH_SHIFT_BITS
+    
+    MOVE.L  #$1,D2
+    CMP.B   #$31,(A1)
+    BEQ     STH_SHIFT_BITS
+    
+    MOVE.L  #$2,D2
+    CMP.B   #$32,(A1)
+    BEQ     STH_SHIFT_BITS
+    
+    MOVE.L  #$3,D2
+    CMP.B   #$33,(A1)
+    BEQ     STH_SHIFT_BITS
+    
+    MOVE.L  #$4,D2
+    CMP.B   #$34,(A1)
+    BEQ     STH_SHIFT_BITS
+    
+    MOVE.L  #$5,D2
+    CMP.B   #$35,(A1)
+    BEQ     STH_SHIFT_BITS
+    
+    MOVE.L  #$6,D2
+    CMP.B   #$36,(A1)
+    BEQ     STH_SHIFT_BITS
+    
+    MOVE.L  #$7,D2
+    CMP.B   #$37,(A1)
+    BEQ     STH_SHIFT_BITS
+    
+    MOVE.L  #$8,D2
+    CMP.B   #$38,(A1)
+    BEQ     STH_SHIFT_BITS
+    
+    MOVE.L  #$9,D2
+    CMP.B   #$39,(A1)
+    BEQ     STH_SHIFT_BITS
+    
+    MOVE.L  #$A,D2
+    CMP.B   #$41,(A1)
+    BEQ     STH_SHIFT_BITS
+    
+    MOVE.L  #$B,D2
+    CMP.B   #$42,(A1)
+    BEQ     STH_SHIFT_BITS
+    
+    MOVE.L  #$C,D2
+    CMP.B   #$43,(A1)
+    BEQ     STH_SHIFT_BITS
+    
+    MOVE.L  #$D,D2
+    CMP.B   #$44,(A1)
+    BEQ     STH_SHIFT_BITS
+    
+    MOVE.L  #$E,D2
+    CMP.B   #$45,(A1)
+    BEQ     STH_SHIFT_BITS
+    
+    MOVE.L  #$F,D2
+    CMP.B   #$46,(A1)
+    BEQ     STH_SHIFT_BITS
+    
+    JMP     STH_BAD_INPUT
+    
+STH_SHIFT_BITS
+
+    CMP.B   #1,D1
+    BEQ     STH_INCREASE_VALUE
+    
+    ROL.L   #4,D2
+    CMP.B   #2,D1
+    BEQ     STH_INCREASE_VALUE
+    
+    ROL.L   #4,D2
+    CMP.B   #3,D1
+    BEQ     STH_INCREASE_VALUE
+    
+    ROL.L   #4,D2
+    CMP.B   #4,D1
+    BEQ     STH_INCREASE_VALUE
+    
+    ROL.L   #4,D2
+    CMP.B   #5,D1
+    BEQ     STH_INCREASE_VALUE
+    
+    ROL.L   #4,D2
+    CMP.B   #6,D1
+    BEQ     STH_INCREASE_VALUE
+    
+    JMP     STH_BAD_INPUT
+    
+STH_INCREASE_VALUE
+
+    ADD.L   D2,D3
+    JMP     STH_UPDATE
+	
+* END OF GET_INPUT -----------------------------------------------
 
     SIMHALT
 
@@ -1290,7 +1474,13 @@ PRINT_IMMEDIATE_NEWLINE
 *-------------------------------------------------------------------------------
 
 
-* Put variables and constants here
+* Data for GET_INPUT
+STRING_ENTER_START      DC.B    'Please enter a start address, eg. 4A6C',0
+STRING_ENTER_END        DC.B    'Please enter a end address, eg. 5D3F',0
+STRING_INVALID_INPUT    DC.B    'INVALID INPUT, must be a valid EASy68k hexidecimal memory address',0
+STRING_OUT_OF_ORDER     DC.B    'Start address must be less than end address',0
+
+
 STRING_ILLEGAL              DC.B    'ILLEGAL',0
 STRING_BYTE_DESIGNATOR      DC.B    '.B ',0
 STRING_WORD_DESIGNATOR      DC.B    '.W ',0
