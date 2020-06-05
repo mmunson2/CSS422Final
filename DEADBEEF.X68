@@ -212,7 +212,7 @@ BRANCHBLOCK
   AND.W   #$F000,D0
   CMP.W   #$E000,D0
   BEQ     LSX_ASX_ROX
-  
+
 * ---- 10 BIT OPCODES ----
   CLR.L   D0
   MOVE.W  D7,D0
@@ -359,7 +359,7 @@ RESUME_ADD
   MOVE.W #0,D3    * MISC_NUMBER for LOOP_INC
 
 
-  ADD.B  #2, D3ß
+  ADD.B  #2, D3
 
 ADD_ADDA_LOOP_ADD_W
   ADD.B  #2, D3
