@@ -104,7 +104,7 @@ OPCODE_LOOP
 * ------ Reset Loop Variables ------
     MOVE.W  #0,PRINT_COUNT  * Reset print count to zero
     MOVE.W  #0,LOOP_INC     * Reset loop index increment to zero
-    CLR     D7
+    CLR.L   D7
 
 * ------ Get memory at loop index ------
     MOVE.W  (A0),D7
@@ -242,44 +242,44 @@ BCC
   AND.W     #$0F00,D0  * Isolate bits 11-8
   CMP.W     #0,D0
   BEQ       BRA
-  
+
   CMP.W     #$E00,D0
   BEQ       BGT
-  
+
   CMP.W     #$F00,D0
   BEQ       BLE
-  
+
   CMP.W     #$700,D0
-  BEQ       BEQ 
-  
+  BEQ       BEQ
+
   BRA       PRINT_ILLEGAL
-  
+
 BRA
   LEA     PRINT_BRA,A5    * Load the print subroutine into intermediate address
   MOVE.L  A5, -(SP)       * Put the print subroutine jump onto the stack
-  ADD.W   #4,PRINT_COUNT  
+  ADD.W   #4,PRINT_COUNT
 
   BRA   BCC_CONTINUE
 
 BGT
   LEA     PRINT_BGT,A5    * Load the print subroutine into intermediate address
   MOVE.L  A5, -(SP)       * Put the print subroutine jump onto the stack
-  ADD.W   #4,PRINT_COUNT    
-  
+  ADD.W   #4,PRINT_COUNT
+
   BRA   BCC_CONTINUE
 
 BLE
   LEA     PRINT_BLE,A5    * Load the print subroutine into intermediate address
   MOVE.L  A5, -(SP)       * Put the print subroutine jump onto the stack
-  ADD.W   #4,PRINT_COUNT  
+  ADD.W   #4,PRINT_COUNT
 
   BRA   BCC_CONTINUE
 
 BEQ
   LEA     PRINT_BEQ,A5    * Load the print subroutine into intermediate address
   MOVE.L  A5, -(SP)       * Put the print subroutine jump onto the stack
-  ADD.W   #4,PRINT_COUNT  
-  
+  ADD.W   #4,PRINT_COUNT
+
   BRA   BCC_CONTINUE
 
 BCC_CONTINUE
@@ -289,37 +289,37 @@ BCC_CONTINUE
   BEQ       BCC_16     * if 16 bit displacement, print the following short
 
   CMP.B     #$FF,D0    * if 32 bit displacement, print the following long
-  BEQ       BCC_32  
+  BEQ       BCC_32
 
   MOVE.L    #0,DATA1
   *ROR.L     #4,D0
   MOVE.L    D0,DATA1
-  
+
   MOVE.W  #2,LOOP_INC
-  
+
   BRA     BCC_END
-  
-BCC_16 
+
+BCC_16
   MOVE.L          DATA1,D1
   SWAP            D1              * We only want the upper word
   AND.L           #$0000FFFF,D1   * Bit mask for upper word
   MOVE.L          D1,DATA1
-  
+
   MOVE.W  #4,LOOP_INC
-  
+
   BRA     BCC_END
 
 BCC_32
-  MOVE.W  #6,LOOP_INC  
+  MOVE.W  #6,LOOP_INC
   BRA     BCC_END
 
 BCC_END
   LEA     PRINT_EA_MODE_ID_ABS_DATA,A5
   MOVE.L  A5, -(SP)
-  ADD.W   #4, PRINT_COUNT 
-  
+  ADD.W   #4, PRINT_COUNT
+
   BRA   PRINT_OPCODE
-    
+
 
 *-------------------------------------------------------------------------------
 *   ADD ADDA
@@ -343,7 +343,7 @@ RESUME_ADD
   MOVE.W #0,D3    * MISC_NUMBER for LOOP_INC
 
 
-  ADD.B  #2, D3
+  ADD.B  #2, D3ß
 
 ADD_ADDA_LOOP_ADD_W
   ADD.B  #2, D3
@@ -389,7 +389,7 @@ ADDA_L
   LEA     PRINT_LONG_DESIGNATOR,A5 * Load the ".L" print subroutine
   MOVE.L  A5, -(SP)       * Put the subroutine onto the stack
   ADD.W   #4,PRINT_COUNT  * Increment Print Count by 1 long
-  
+
   BRA     ADDA_CONTINUE
 
 * ------ Word Opmode ------
@@ -440,16 +440,15 @@ ADD
 
   LEA     PRINT_ADD,A5    * Load the print subroutine into intermediate address
   MOVE.L  A5, -(SP)       * Put the print subroutine jump onto the stack
-  ADD.W   #2,PRINT_COUNT  * Edit: Shouldn't this be 4?
+  ADD.W   #4,PRINT_COUNT
 
   MOVE.B   D0,D4            * Move bits 7,6 to D4 for BWL
 
   LEA     PUSH_BWL,A5    * Load the PUSH_BWL subroutine into intermediate address
   MOVE.L  A5, -(SP)       * Put the PUSH_BWL subroutine jump onto the stack
-  ADD.W   #2,PRINT_COUNT  * Edit: Shouldn't this be 4?
+  ADD.W   #4,PRINT_COUNT
 
   JSR     PUSH_EA_MODE_ID
-  MOVE.W  #4,LOOP_INC     * Increment the loop counter by 4 bytes
 
   MOVE D7,D0    * Reset D0
 
@@ -519,7 +518,7 @@ ADDQ
   ADD.W   #2,PRINT_COUNT
 
   ROL.L   #$02,D0           * Isolate bits 7 - 6
-  CLR      D4
+  CLR.L   D4
   MOVE.B   D0,D4            * Move bits 7,6 to D4 for BWL
 
   LEA     PUSH_BWL,A5    * Load the PUSH_BWL subroutine into intermediate address
@@ -557,7 +556,7 @@ JSR
 * ---- Custom Branching Block ----
 * Supported Modes: (An), Indirect short, Indirect Long
 
-  CLR       D0
+  CLR.L     D0
   MOVE.B    D7,D0 * Copy opcode into local variable
   AND.B     #$38,D0 * Mask D0 with 0111000 to get MODE bits only
   ASR.B   #3,D0	* Shift the result so D0 ranges between 000 and 111
@@ -576,7 +575,7 @@ JSR
 *----------------------------------------
 JSR_EA_MODE_ELSE
 
-  CLR     D0
+  CLR.L   D0
   MOVE.B  D7,D0
   AND.B   #7,D0
 
@@ -898,7 +897,7 @@ PRINT_DATA1_LONG
     MOVEQ           #15,D0
     MOVEQ           #16,D2
     TRAP            #15
-        
+
 *-------------------------------------------------------------------------------
 *
 *		PRINT DATA1_WORD
@@ -920,7 +919,7 @@ PRINT_DATA1_WORD
     MOVEQ           #15,D0
     MOVEQ           #16,D2
     TRAP            #15
-        
+
 *-------------------------------------------------------------------------------
 *
 *		PRINT BGT
@@ -1036,7 +1035,7 @@ PRINT_ADDA
 * A1: LOCAL VARIABLE  - String address
 *-------------------------------------------------------------------------------
 PRINT_MISC_NUMBER
-    CLR D1
+    CLR.L   D1
 
     MOVE.B  #15,D0
     MOVE.B  MISC_NUMBER,D1
@@ -1065,9 +1064,9 @@ PRINT_MISC_NUMBER_AS_ADDRESS
     MOVE.B          #14,D0
     TRAP            #15
 
-    CLR D0
-    CLR.L D1
-    CLR D2
+    CLR.L   D0
+    CLR.L   D1
+    CLR.L   D2
 
     MOVE.B  #15,D0
     MOVE.B  MISC_NUMBER,D1
@@ -1160,7 +1159,7 @@ PRINT_EA_MODE_ID_DN
     MOVE.B          #14,D0		* Set trap task to String
     TRAP            #15			* Print "D"
 
-    CLR             D1
+    CLR.L           D1
     MOVE.B          D7,D1  		* Get the lowest byte of the opcode
     AND.B           #$7,D1		* Get the lowest four bits (register #)
     MOVE.B          #3,D0		* Set trap task to signed MISC_NUMBER
@@ -1190,7 +1189,7 @@ PRINT_EA_MODE_ID_AN
     TRAP            #15
 
 
-    CLR             D1
+    CLR.L           D1
     MOVE.B          D7,D1  		* Get the lowest byte of the opcode
     AND.B           #$7,D1		* Get the lowest four bits (register #)
     MOVE.B          #3,D0		* Set trap task to signed MISC_NUMBER
@@ -1221,7 +1220,7 @@ PRINT_EA_MODE_ID_AN_INDIRECT
     MOVE.B          #14,D0
     TRAP            #15
 
-    CLR             D1
+    CLR.L           D1
     MOVE.B          D7,D1  		* Get the lowest byte of the opcode
     AND.B           #$7,D1		* Get the lowest four bits (register #)
     MOVE.B          #3,D0		* Set trap task to signed MISC_NUMBER
@@ -1255,7 +1254,7 @@ PRINT_EA_MODE_ID_AN_POST_INC
     MOVE.B          #14,D0
     TRAP            #15
 
-    CLR             D1
+    CLR.L           D1
     MOVE.B          D7,D1  		* Get the lowest byte of the opcode
     AND.B           #$7,D1		* Get the lowest four bits (register #)
     MOVE.B          #3,D0		* Set trap task to signed MISC_NUMBER
@@ -1299,7 +1298,7 @@ PRINT_EA_MODE_ID_AN_PRE_DEC
     MOVE.B          #14,D0
     TRAP            #15
 
-    CLR             D1
+    CLR.L           D1
     MOVE.B          D7,D1  		* Get the lowest byte of the opcode
     AND.B           #$7,D1		* Get the lowest four bits (register #)
     MOVE.B          #3,D0		* Set trap task to signed MISC_NUMBER
@@ -1530,7 +1529,7 @@ GET_INPUT
     MOVE.L  #0,START_ADDR
     MOVE.L  #0,END_ADDR
 
-    CLR     D3
+    CLR.L   D3
 
     LEA     STRING_ENTER_START,A1
     MOVE.B  #13,D0
@@ -1543,7 +1542,7 @@ GET_INPUT
     JSR     STRING_TO_HEX
     MOVE.L  D3,START_ADDR
 
-    CLR     D3
+    CLR.L   D3
 
     LEA     STRING_ENTER_END,A1
     MOVE.B  #13,D0
@@ -1560,10 +1559,10 @@ GET_INPUT
     CMP.L   D2,D3
     BLT     OUT_OF_ORDER
 
-    CLR     D0
-    CLR     D1
-    CLR     D2
-    CLR     D3
+    CLR.L     D0
+    CLR.L     D1
+    CLR.L     D2
+    CLR.L     D3
 
     RTS
 
@@ -1577,7 +1576,7 @@ OUT_OF_ORDER
 
 STRING_TO_HEX
 
-    CLR     D2
+    CLR.L   D2
     CMP.B   #0,D1
     BEQ     STH_END
     JSR     STH_SET_VALUE
@@ -1761,9 +1760,6 @@ MISC_REGISTER DS.B   1
 
 
     END    START
-
-
-
 
 
 
