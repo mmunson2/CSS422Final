@@ -405,6 +405,7 @@ ADDA_W
 ADDA_CONTINUE
 
 * Push the effective address print subroutine onto the stack
+  MOVE.L  D7,D6 * Put full opcode into D6 as parameter
   JSR     PUSH_EA_MODE_ID
 
 
@@ -448,6 +449,7 @@ ADD
   MOVE.L  A5, -(SP)       * Put the PUSH_BWL subroutine jump onto the stack
   ADD.W   #4,PRINT_COUNT
 
+  MOVE.L  D7,D6 * Put full opcode into D6 as parameter
   JSR     PUSH_EA_MODE_ID
 
   MOVE D7,D0    * Reset D0
@@ -534,7 +536,8 @@ ADDQ
   MOVE.L  A5, -(SP)
   ADD.W   #4, PRINT_COUNT
 
-  SWAP    D7              * Reset D7 for EA MODE
+
+  MOVE.L  D7,D6 * Put full opcode into D6 as parameter
   JSR     PUSH_EA_MODE_ID
   MOVE.W  #4,LOOP_INC     * Increment the loop counter by 4 bytes
 
@@ -684,7 +687,8 @@ PRINT_OPCODE_LOOP_FINISH
 * Register Use Summary:
 *
 * D0: LOCAL VARIABLE - low byte of opcode
-* D7: CONST PARAMETER - The current opcode word
+* D6: PARAMETER - The effective address bits. Assumes bits are shifted into
+*                 the lowest 6 bits of the register.
 *
 * A4: LOCAL VARIABLE - RTS value temporary storage - must be swapped
 * A5: LOCAL VARIABLE - Print Label to be pushed to stack
@@ -695,7 +699,7 @@ PUSH_EA_MODE_ID
 
 * ---- Input Processing ----
 
-    MOVE.B  D7,D0	* Put opcode in D0
+    MOVE.B  D6,D0	* Put opcode in D0
     AND.B   #$38,D0	* Mask D0 with 0111000 to get MODE bits only
     ASR.B   #3,D0	* Shift the result so D0 ranges between 000 and 111
 
@@ -756,7 +760,7 @@ PUSH_EA_MODE_ID_AN_PRE_DEC
 * Handle Data Branching Logic
 *----------------------------------------
 PUSH_EA_MODE_ID_ELSE
-    MOVE.B  D7,D0
+    MOVE.B  D6,D0
     AND.B   #7,D0
 
     CMP.B   #0,D0
