@@ -27,6 +27,16 @@ JSR Test
   MOVE.W  #$DE4F, $400C * ADD.W   A7,D7
   MOVE.W  #$DE8F, $400E * ADD.L   A7,D7
 
+* ------ ADDQ TEST ------
+  MOVE.W  #$5200, $4000 * ADDQ.B  #1,D0
+  MOVE.W  #$5441, $4002 * ADDQ.W  #2,D1
+  MOVE.W  #$5682, $4004 * ADDQ.L  #3,D2
+
+  MOVE.W  #$5E51, $4006 * ADDQ.W  #7,(A1)
+  MOVE.W  #$505F, $4008 * ADDQ.L  #8,(A7)+
+
+
+
 
 * ------ ADDA TEST ------
   MOVE.W   #$D2C0, $4000 * ADDA.W    D0,A1

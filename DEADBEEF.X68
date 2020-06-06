@@ -49,6 +49,16 @@ INITIALIZE
 
 * ------ Test Initializations ------
 
+
+* ------ ADDQ TEST ------
+  MOVE.W  #$5200, $4000 * ADDQ.B  #1,D0
+  MOVE.W  #$5441, $4002 * ADDQ.W  #2,D1
+  MOVE.W  #$5682, $4004 * ADDQ.L  #3,D2
+
+  MOVE.W  #$5E51, $4006 * ADDQ.W  #7,(A1)
+  MOVE.W  #$505F, $4008 * ADDQ.W  #8,(A7)+
+
+
 *  MOVE.W    #$4E91, $4000   * JSR Opcode
 *  MOVE.W    #$4EB9,$4000      * JSR 1016 (1)
 *  MOVE.L    #$00001016, $4002 * JSR 1016 (2)
@@ -524,6 +534,73 @@ ADD_DN_FIRST
 
 
 *-------------------------------------------------------------------------------
+*   ADDQ
+*
+*
+*-------------------------------------------------------------------------------
+ADDQ
+
+
+* ------ Ensure that opcode is valid ------
+  MOVE.L  D7,D0
+  ROR.W   #$08,D0
+  AND.B   #1,D0
+  CMP.B   #0,D0             * Check for 0 in 8th bit
+  BNE     PRINT_ILLEGAL
+
+* ------ Print "ADDQ" ------
+  LEA     PRINT_ADDQ,A5    * Load the print subroutine into intermediate address
+  MOVE.L  A5, -(SP)       * Put the print subroutine jump onto the stack
+  ADD.W   #4,PRINT_COUNT
+
+* ------ Print Size ------
+  MOVE.L  D7,D0
+  ROR.W   #6,D0
+  AND.W   #3,D0
+
+  CLR.L   D4
+  MOVE.B  D0,D4            * Move bits 7,6 to D4 for BWL
+  JSR     PUSH_BWL
+
+* ------ Retrieve Data ------
+  MOVE.L  D7,D0             * Reset D0
+  ROR.W   #$8, D0           * Get bits 11 - 9
+  ROR.W   #$1, D0           * Get bits 11 - 9
+  AND.B   #$7, D0           * Clear bit 11
+
+
+* ADDQ converts 000 to 8 since nobody wants to add 0 to their number
+  CMPI.B   #0,D0
+  BNE      ADDQ_NOT_ZERO
+
+*Else: D0 is 0, so we convert to 8
+  MOVE.B   #8,D0
+
+ADDQ_NOT_ZERO
+
+  MOVE.B  D0,MISC_NUMBER
+
+* ------ Print Data ------
+  LEA     PRINT_MISC_NUMBER_AS_DATA,A5
+  MOVE.L  A5, -(SP)
+  ADD.W   #4, PRINT_COUNT
+
+* ------ Print a comma ------
+  LEA     PRINT_COMMA,A5  * Load the print subroutine
+  MOVE.L  A5, -(SP)       * Put the print subroutine jump onto the stack
+  ADD.W   #4,PRINT_COUNT  * Increment Print Count by 1 long
+
+* ------ Print Effective Address ------
+  MOVE.L  D7,D6 * Put full opcode into D6 as parameter
+  JSR     PUSH_EA_MODE_ID
+
+
+  MOVE.W  #2,LOOP_INC     * Increment the loop counter by 2 bytes
+  BRA     PRINT_OPCODE    * Always put this at the end
+
+
+
+*-------------------------------------------------------------------------------
 *   NOP
 *
 *   NONSTANDARD OPCODE! Don't base your design off of this :)
@@ -558,50 +635,6 @@ RTS
   JSR     PRINT_IMMEDIATE_NEWLINE
 
   RTS
-
-*-------------------------------------------------------------------------------
-*   ADDQ
-*
-*
-*-------------------------------------------------------------------------------
-ADDQ
-
-  MOVE.L  D7,D0             * Reset bit shit
-  ROL.L   #$04,D0
-
-  ROL.L   #$04,D0           * Isolate bits 11 - 8
-  AND.B   #1,D0
-  CMP.B   #0,D0             * Check for 0 in 8th bit
-  BNE     PRINT_ILLEGAL
-
-  LEA     PRINT_ADDQ,A5    * Load the print subroutine into intermediate address
-  MOVE.L  A5, -(SP)       * Put the print subroutine jump onto the stack
-  ADD.W   #2,PRINT_COUNT
-
-  ROL.L   #$02,D0           * Isolate bits 7 - 6
-  CLR.L   D4
-  MOVE.B   D0,D4            * Move bits 7,6 to D4 for BWL
-
-  LEA     PUSH_BWL,A5    * Load the PUSH_BWL subroutine into intermediate address
-  MOVE.L  A5, -(SP)       * Put the PUSH_BWL subroutine jump onto the stack
-  ADD.W   #2,PRINT_COUNT
-
-  MOVE.L  D7,D0             * Reset D0
-  ROL.L   #$7, D0           * Get bits 11 - 9
-  AND.B   #$7, D0           * Clear bit 11
-
-  MOVE.B  D0,MISC_NUMBER
-  LEA     PRINT_MISC_NUMBER,A5
-  MOVE.L  A5, -(SP)
-  ADD.W   #4, PRINT_COUNT
-
-
-  MOVE.L  D7,D6 * Put full opcode into D6 as parameter
-  JSR     PUSH_EA_MODE_ID
-  MOVE.W  #4,LOOP_INC     * Increment the loop counter by 4 bytes
-
-
-  BRA     PRINT_OPCODE    * Always put this at the end
 
 
 *-------------------------------------------------------------------------------
@@ -1168,6 +1201,42 @@ PRINT_MISC_NUMBER_AS_REGISTER
     TRAP #15
 
     BRA     PRINT_OPCODE_LOOP_RETURN
+
+*-------------------------------------------------------------------------------
+*
+*		PRINT MISC_NUMBER_AS_DATA
+*________________________________________
+* Register Use Summary:
+*
+* D0: LOCAL VARIABLE  - Trap task designator
+*
+* D1: LOCAL VARIABLE  - MISC_NUMBER to be printed
+*
+* D2: LOCAL VARIABLE  - Base of MISC_NUMBER
+*
+* A1: LOCAL VARIABLE  - String address
+*-------------------------------------------------------------------------------
+PRINT_MISC_NUMBER_AS_DATA
+
+    LEA             STRING_POUND,A1
+    MOVE.B          #14,D0
+    TRAP            #15
+
+    LEA             STRING_DOLLAR,A1
+    MOVE.B          #14,D0
+    TRAP            #15
+
+    CLR.L   D0
+    CLR.L   D1
+    CLR.L   D2
+
+    MOVE.B  #15,D0
+    MOVE.B  MISC_NUMBER,D1
+    MOVE.B  #10,D2
+    TRAP #15
+
+    BRA     PRINT_OPCODE_LOOP_RETURN
+
 
 *-------------------------------------------------------------------------------
 *
