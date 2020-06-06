@@ -33,7 +33,7 @@ JSR Test
   MOVE.W  #$5682, $4004 * ADDQ.L  #3,D2
 
   MOVE.W  #$5E51, $4006 * ADDQ.W  #7,(A1)
-  MOVE.W  #$505F, $4008 * ADDQ.L  #8,(A7)+
+  MOVE.W  #$505F, $4008 * ADDQ.W  #8,(A7)+
 
 
 

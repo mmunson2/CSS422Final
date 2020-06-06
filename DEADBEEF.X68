@@ -50,15 +50,6 @@ INITIALIZE
 * ------ Test Initializations ------
 
 
-* ------ ADDQ TEST ------
-  MOVE.W  #$5200, $4000 * ADDQ.B  #1,D0
-  MOVE.W  #$5441, $4002 * ADDQ.W  #2,D1
-  MOVE.W  #$5682, $4004 * ADDQ.L  #3,D2
-
-  MOVE.W  #$5E51, $4006 * ADDQ.W  #7,(A1)
-  MOVE.W  #$505F, $4008 * ADDQ.W  #8,(A7)+
-
-
 *  MOVE.W    #$4E91, $4000   * JSR Opcode
 *  MOVE.W    #$4EB9,$4000      * JSR 1016 (1)
 *  MOVE.L    #$00001016, $4002 * JSR 1016 (2)
@@ -73,7 +64,6 @@ INITIALIZE
 *   MOVE.L    #$6E000018, $4004   * BRA Opcode
 *   MOVE.W    #$6FE6, $4008
 *   MOVE.W    #$67E2, $400A
-
 
   MOVE.L    #$4000, START_ADDR
   MOVE.L    #$5000, END_ADDR
@@ -257,23 +247,23 @@ BRANCHBLOCK
 LSX_ASX_ROX
   MOVE.L    D7,D0      * Reset D0
   AND.W     #$18,D0  * Isolate bits 4,3
-  
+
   CMP.W #0,D0
   BEQ   ASX
-  
+
   CMP.W #8,D0
   BEQ   LSX
-  
+
   CMP.W #$18,D0
   BEQ   ROX
 
 LSX
   MOVE.L    D7,D0      * Reset D0
   AND.W     #$100,D0   * Isolate bit 8
-  CMP.W     #0,D0    
+  CMP.W     #0,D0
   BEQ       LSR
   BRA       LSL
-  
+
 LSR
   LEA     PRINT_LSR,A5    * Load the print subroutine into intermediate address
   MOVE.L  A5, -(SP)       * Put the print subroutine jump onto the stack
@@ -291,10 +281,10 @@ LSL
 ASX
   MOVE.L    D7,D0      * Reset D0
   AND.W     #$100,D0   * Isolate bit 8
-  CMP.W     #0,D0    
+  CMP.W     #0,D0
   BEQ       ASR
   BRA       ASL
-  
+
 ASR
   LEA     PRINT_ASR,A5    * Load the print subroutine into intermediate address
   MOVE.L  A5, -(SP)       * Put the print subroutine jump onto the stack
@@ -306,16 +296,16 @@ ASL
   LEA     PRINT_ASL,A5    * Load the print subroutine into intermediate address
   MOVE.L  A5, -(SP)       * Put the print subroutine jump onto the stack
   ADD.W   #4,PRINT_COUNT
-  
+
   BRA     LSX_ASX_ROX_CONTINUE
 
 ROX
   MOVE.L    D7,D0      * Reset D0
   AND.W     #$100,D0   * Isolate bit 8
-  CMP.W     #0,D0    
+  CMP.W     #0,D0
   BEQ       ROR
   BRA       ROL
-  
+
 ROR
   LEA     PRINT_ROR,A5    * Load the print subroutine into intermediate address
   MOVE.L  A5, -(SP)       * Put the print subroutine jump onto the stack
@@ -336,24 +326,24 @@ LSX_ASX_ROX_CONTINUE
   AND.L     #3,D0
   CLR.L     D4
   MOVE.B    D0,D4      * Move bits 7,6 to D4 for BWL
-  
+
   CMP.B     #3,D0
   BEQ       LSX_ASX_ROX_MEM
 
   JSR PUSH_BWL
-  
+
   MOVE.L    D7,D0      * Reset D0
   AND.W     #$20,D0    * Isolate bit 5
   CMP.W     #0,D0
   BEQ       LSX_ASX_ROX_SHIFT
   BRA       LSX_ASX_ROX_REGISTER
-  
+
 LSX_ASX_ROX_SHIFT
   MOVE.L  D7,D0             * Reset D0
   AND.L   #$E00,D0           * Get bits 11 - 9
   CMP.L   #0,D0
   BEQ     LSX_ASX_ROX_SHIFT_8  * If 0, shift count is 8
-  
+
   MOVE.L  #0,DATA1
   ASR.L   #$8,D0
   ASR.L   #$1,D0
@@ -362,7 +352,7 @@ LSX_ASX_ROX_SHIFT
   LEA PRINT_EA_MODE_ID_ABS_DATA,A5 * Print shift count
   MOVE.L    A5, -(SP)
   ADD.W     #4, PRINT_COUNT
-    
+
   LEA     PRINT_COMMA,A5   * Load the print subroutine
   MOVE.L  A5, -(SP)       * Put the print subroutine jump onto the stack
   ADD.W   #4,PRINT_COUNT  * Increment Print Count by 1 long
@@ -370,7 +360,7 @@ LSX_ASX_ROX_SHIFT
   LEA   PRINT_EA_MODE_ID_DN,A5  * Print data register
   MOVE.L    A5, -(SP)
   ADD.W     #4, PRINT_COUNT
-  
+
   BRA LSX_ASX_ROX_CONTINUE2
 
 LSX_ASX_ROX_SHIFT_8
@@ -378,18 +368,18 @@ LSX_ASX_ROX_SHIFT_8
   LEA PRINT_EA_MODE_ID_ABS_DATA,A5  * Print shift count 8
   MOVE.L    A5, -(SP)
   ADD.W     #4, PRINT_COUNT
-  
+
   LEA     PRINT_COMMA,A5   * Load the print subroutine
   MOVE.L  A5, -(SP)       * Put the print subroutine jump onto the stack
   ADD.W   #4,PRINT_COUNT  * Increment Print Count by 1 long
 
-  
+
   LEA   PRINT_EA_MODE_ID_DN,A5  * Print data register
   MOVE.L    A5, -(SP)
   ADD.W     #4, PRINT_COUNT
-  
+
   BRA LSX_ASX_ROX_CONTINUE2
-  
+
 LSX_ASX_ROX_REGISTER
   MOVE.L    D7,D0      * Reset D0
   AND.L   #$E00,D0           * Get bits 11 - 9  LEA PRINT_FOURSPACE,A5
@@ -397,12 +387,12 @@ LSX_ASX_ROX_REGISTER
   ADD.W    #4,PRINT_COUNT
   ASR.L   #$8,D0
   ASR.L   #$1,D0
-  
-  MOVE.L  D0,D7  
+
+  MOVE.L  D0,D7
   LEA   PRINT_EA_MODE_ID_DN,A5  * Print data register
   MOVE.L    A5, -(SP)
   ADD.W     #4, PRINT_COUNT
-  
+
   LEA LSX_ASX_ROX_RESET_D7,A5
   MOVE.L    A5, -(SP)
   ADD.W     #4, PRINT_COUNT
@@ -416,26 +406,26 @@ LSX_ASX_ROX_REGISTER
   ADD.W     #4, PRINT_COUNT
 
   BRA LSX_ASX_ROX_CONTINUE2
-  
+
 LSX_ASX_ROX_MEM
   MOVE.L D7,D6
 
   LEA PRINT_FOURSPACE,A5
   MOVE.L    A5,-(SP)
   ADD.W    #4,PRINT_COUNT
-  
+
   JSR     PUSH_EA_MODE_ID
   BRA LSX_ASX_ROX_CONTINUE2
 
 
-LSX_ASX_ROX_CONTINUE2  
+LSX_ASX_ROX_CONTINUE2
   MOVE.W  #4,LOOP_INC
   BRA   PRINT_OPCODE
 
 LSX_ASX_ROX_RESET_D7
     MOVE.L    D7,D0
     BRA   PRINT_OPCODE_LOOP_RETURN
-    
+
 *-------------------------------------------------------------------------------
 *   BCC
 *
@@ -1167,7 +1157,7 @@ PRINT_LSR
     MOVE.B          #14,D0		* Set trap task to String
     TRAP            #15			* Print "LSR "
     BRA             PRINT_OPCODE_LOOP_RETURN
-    
+
 *-------------------------------------------------------------------------------
 *
 *		PRINT LSL
@@ -1183,7 +1173,7 @@ PRINT_LSL
     MOVE.B          #14,D0		* Set trap task to String
     TRAP            #15			* Print "LSL "
     BRA             PRINT_OPCODE_LOOP_RETURN
-    
+
 *-------------------------------------------------------------------------------
 *
 *		PRINT ASR
@@ -1199,7 +1189,7 @@ PRINT_ASR
     MOVE.B          #14,D0		* Set trap task to String
     TRAP            #15			* Print "ASR "
     BRA             PRINT_OPCODE_LOOP_RETURN
-    
+
 *-------------------------------------------------------------------------------
 *
 *		PRINT ASL
@@ -1231,7 +1221,7 @@ PRINT_ROR
     MOVE.B          #14,D0		* Set trap task to String
     TRAP            #15			* Print "ROR "
     BRA             PRINT_OPCODE_LOOP_RETURN
-    
+
 *-------------------------------------------------------------------------------
 *
 *		PRINT ROL
@@ -2202,7 +2192,6 @@ MISC_REGISTER DS.B   1
 
 
     END    START
-
 
 
 
