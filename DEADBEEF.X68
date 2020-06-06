@@ -59,10 +59,10 @@ INITIALIZE
 *  MOVE.W    #$5241, $4000   * ADDQ Opcode
 *  MOVE.W    #$D240, $4000   * ADD Opcode
 *  MOVE.W    #$D5C9, $4000   * ADDA Opcode (ADDA.L A1,A2)
-   MOVE.L    #$60000002, $4000   * BRA Opcode
-   MOVE.L    #$6E000018, $4004   * BRA Opcode
-   MOVE.W    #$6FE6, $4008
-   MOVE.W    #$67E2, $400A
+*   MOVE.L    #$60000002, $4000   * BRA Opcode
+*   MOVE.L    #$6E000018, $4004   * BRA Opcode
+*   MOVE.W    #$6FE6, $4008
+*   MOVE.W    #$67E2, $400A
 
   MOVE.L    #$4000, START_ADDR
   MOVE.L    #$5000, END_ADDR
@@ -340,10 +340,20 @@ BCC_END
 *-------------------------------------------------------------------------------
 *   ADD ADDA
 *
+* Because ADD and ADDA have the same first four bits (1101), we need to do
+* some additional branching to differentiate them.
+*________________________________________
+* Register Use Summary:
+*
+* D0: General variable, cleared every use to be safe
+* D7: CONST - The opcode to decode - NO TOUCH
 *
 *-------------------------------------------------------------------------------
-ADD_ADDA * Figure out whether we're dealing with ADD or ADDA
+ADD_ADDA
+
+  CLR.L   D0
   MOVE.L  D7,D0
+
   ROR.W   #06,D0     * Get bits 7,6 on end
   AND.B   #03,D0     * Isolate bits 7,6
   CMP.B   #03,D0
@@ -353,28 +363,6 @@ ADD_ADDA * Figure out whether we're dealing with ADD or ADDA
 *-------------------------------------------------------------------------------
 
 
-
-
-RESUME_ADD
-  MOVE.W #0,D3    * MISC_NUMBER for LOOP_INC
-
-
-  ADD.B  #2, D3
-
-ADD_ADDA_LOOP_ADD_W
-  ADD.B  #2, D3
-
-ADD_ADDA_LOOP_NO_ADD
-  ADD.B #2, D3
-  ROR.B #2, D3
-  AND.B #$C,D3
-
-  MOVE.B  D3,LOOP_INC
-
-  BRA   PRINT_OPCODE
-
-
-  RTS
 *-------------------------------------------------------------------------------
 *   ADDA
 *
@@ -455,30 +443,85 @@ ADDA_CONTINUE
 *-------------------------------------------------------------------------------
 ADD
 
+* ------ Print "ADD" ------
   LEA     PRINT_ADD,A5    * Load the print subroutine into intermediate address
   MOVE.L  A5, -(SP)       * Put the print subroutine jump onto the stack
   ADD.W   #4,PRINT_COUNT
 
+* ------ Print size ------
   MOVE.B   D0,D4            * Move bits 7,6 to D4 for BWL
+  JSR      PUSH_BWL
 
-  LEA     PUSH_BWL,A5    * Load the PUSH_BWL subroutine into intermediate address
-  MOVE.L  A5, -(SP)       * Put the PUSH_BWL subroutine jump onto the stack
-  ADD.W   #4,PRINT_COUNT
+* ------ Reset D0, determine order ------
+  MOVE.L  D7,D0
+  ROR.W   #08,D0     * Get bit 8 on the end
+  AND.W   #1,D0
 
+  * If bit 8 == 0 the order is <ea> + Dn
+  * If bit 8 == 1 the order is Dn + <ea>
+
+  CMP.B   #1,D0
+  BEQ     ADD_DN_FIRST
+
+* ------ Print order is effective address, data register ------
+ADD_EA_FIRST
+
+
+  * ------ Print the effective address ------
   MOVE.L  D7,D6 * Put full opcode into D6 as parameter
   JSR     PUSH_EA_MODE_ID
 
-  MOVE D7,D0    * Reset D0
+  * ------ Print a comma ------
+  LEA     PRINT_COMMA,A5   * Load the print subroutine
+  MOVE.L  A5, -(SP)       * Put the print subroutine jump onto the stack
+  ADD.W   #4,PRINT_COUNT  * Increment Print Count by 1 long
 
-  ASR.L   #$8,D0
-  ASR.L   #$1,D0
-  AND.B   #$7,D0
+  * ------ Determine the register number ------
+  MOVE.L  D7,D0
+  ROR.W   #08,D0 * Get bits 9, 10, and 11 on the end
+  ROR.W   #01,D0 * Get bits 9, 10, and 11 on the end
+  AND.W   #7,D0 * Mask against 111 to only get 3 bits
 
-  MOVE.B  D0,MISC_REGISTER
-  JSR     PUSH_EA_MODE_ID_DN
-  MOVE.W  #4,LOOP_INC     * Increment the loop counter by 4 bytes
+  * ------ Print the register number ------
+  MOVE.B  D0,MISC_NUMBER
+  LEA     PRINT_MISC_NUMBER_AS_REGISTER,A5   * Load the print subroutine
+  MOVE.L  A5, -(SP)       * Put the print subroutine jump onto the stack
+  ADD.W   #4,PRINT_COUNT  * Increment Print Count by 1 long
 
-  BRA   RESUME_ADD
+  ADD.W  #2,LOOP_INC     * Increment the loop counter by 4 bytes
+
+  BRA   PRINT_OPCODE
+
+
+* ------ Print order is data register, effective address ------
+ADD_DN_FIRST
+
+
+  * ------ Determine the register number ------
+  MOVE.L  D7,D0
+  ROR.W   #08,D0 * Get bits 9, 10, and 11 on the end
+  ROR.W   #01,D0 * Get bits 9, 10, and 11 on the end
+  AND.W   #7,D0 * Mask against 111 to only get 3 bits
+
+  * ------ Print the register number ------
+  MOVE.B  D0,MISC_NUMBER
+  LEA     PRINT_MISC_NUMBER_AS_REGISTER,A5   * Load the print subroutine
+  MOVE.L  A5, -(SP)       * Put the print subroutine jump onto the stack
+  ADD.W   #4,PRINT_COUNT  * Increment Print Count by 1 long
+
+  * ------ Print a comma ------
+  LEA     PRINT_COMMA,A5   * Load the print subroutine
+  MOVE.L  A5, -(SP)       * Put the print subroutine jump onto the stack
+  ADD.W   #4,PRINT_COUNT  * Increment Print Count by 1 long
+
+  * ------ Print the effective address ------
+  MOVE.L  D7,D6 * Put full opcode into D6 as parameter
+  JSR     PUSH_EA_MODE_ID
+
+  ADD.W  #2,LOOP_INC     * Increment the loop counter by 4 bytes
+
+  BRA   PRINT_OPCODE
+
 
 *-------------------------------------------------------------------------------
 *   NOP
@@ -850,7 +893,7 @@ PUSH_BWL
     BEQ             PUSH_BWL_BYTE
     CMP.B           #1,D4		*01 -> Word
     BEQ             PUSH_BWL_WORD
-    CMP.B           #3,D4		*10 -> Long
+    CMP.B           #2,D4		*10 -> Long
     BEQ             PUSH_BWL_LONG
 
     BRA             PRINT_ILLEGAL
@@ -1095,6 +1138,36 @@ PRINT_MISC_NUMBER_AS_ADDRESS
 
     BRA     PRINT_OPCODE_LOOP_RETURN
 
+*-------------------------------------------------------------------------------
+*
+*		PRINT MISC_NUMBER_AS_REGISTER
+*________________________________________
+* Register Use Summary:
+*
+* D0: LOCAL VARIABLE  - Trap task designator
+*
+* D1: LOCAL VARIABLE  - MISC_NUMBER to be printed
+*
+* D2: LOCAL VARIABLE  - Base of MISC_NUMBER
+*
+* A1: LOCAL VARIABLE  - String address
+*-------------------------------------------------------------------------------
+PRINT_MISC_NUMBER_AS_REGISTER
+
+    LEA             STRING_D,A1
+    MOVE.B          #14,D0
+    TRAP            #15
+
+    CLR.L   D0
+    CLR.L   D1
+    CLR.L   D2
+
+    MOVE.B  #15,D0
+    MOVE.B  MISC_NUMBER,D1
+    MOVE.B  #10,D2
+    TRAP #15
+
+    BRA     PRINT_OPCODE_LOOP_RETURN
 
 *-------------------------------------------------------------------------------
 *
