@@ -15,3 +15,69 @@ JSR Test
 
    MOVE.W    #$4EB9,$4010     * JSR 1016 (1)
    MOVE.L    #$00001016, $4012 * JSR 1016 (2)
+
+* ------ ADD TEST ------
+  MOVE.W  #$D151, $4000 * ADD.W   D0,(A1)
+  MOVE.W  #$D191, $4002 * ADD.L   D0,(A1)
+  MOVE.W  #$D049, $4004 * ADD.W   A1,D0
+  MOVE.W  #$D089, $4006 * ADD.L   A1,D0
+
+  MOVE.W  #$DF57, $4008 * ADD.W   D7,(A7)
+  MOVE.W  #$DF97, $400A * ADD.L   D7,(A7)
+  MOVE.W  #$DE4F, $400C * ADD.W   A7,D7
+  MOVE.W  #$DE8F, $400E * ADD.L   A7,D7
+
+* ------ ADDQ TEST ------
+  MOVE.W  #$5200, $4000 * ADDQ.B  #1,D0
+  MOVE.W  #$5441, $4002 * ADDQ.W  #2,D1
+  MOVE.W  #$5682, $4004 * ADDQ.L  #3,D2
+
+  MOVE.W  #$5E51, $4006 * ADDQ.W  #7,(A1)
+  MOVE.W  #$505F, $4008 * ADDQ.L  #8,(A7)+
+
+
+
+
+* ------ ADDA TEST ------
+  MOVE.W   #$D2C0, $4000 * ADDA.W    D0,A1
+  MOVE.W   #$D3C0, $4002 * ADDA.L    D0,A1
+  MOVE.W   #$DEC7, $4004 * ADDA.W    D7,A7
+  MOVE.W   #$DFC7, $4006 * ADDA.L    D7,A7
+
+  MOVE.W   #$D2C8, $4008 * ADDA.W    A0,A1
+  MOVE.W   #$D5C9, $400A * ADDA.L    A1,A2
+  MOVE.W   #$D6CA, $400C * ADDA.W    A2,A3
+  MOVE.W   #$DFCE, $400E * ADDA.L    A6,A7
+
+  MOVE.W   #$D2D0, $4010 * ADDA.W    (A0),A1
+  MOVE.W   #$D3D0, $4012 * ADDA.L    (A0),A1
+  MOVE.W   #$DED7, $4014 * ADDA.W    (A7),A7
+  MOVE.W   #$DFD7, $4016 * ADDA.L    (A7),A7
+
+  MOVE.W   #$D2D8, $4018 * ADDA.W    (A0)+,A1
+  MOVE.W   #$D3D8, $401A * ADDA.L    (A0)+,A1
+  MOVE.W   #$DEDF, $401C * ADDA.W    (A7)+,A7
+  MOVE.W   #$DFDF, $401E * ADDA.L    (A7)+,A7
+
+  MOVE.W   #$D2E0, $4020 * ADDA.W    -(A0),A1
+  MOVE.W   #$D3E0, $4022 * ADDA.L    -(A0),A1
+  MOVE.W   #$DEE7, $4024 * ADDA.W    -(A7),A7
+  MOVE.W   #$DFE7, $4026 * ADDA.L    -(A7),A7
+
+  MOVE.W   #$D3F9, $4028 * ADDA.L    DEADBEEF,A1
+  MOVE.L   #$00001032, $402A
+
+  MOVE.W   #$D4F9, $4032 * ADDA.W    DEAD,A1
+  MOVE.L   #$00001032, $4034
+
+  MOVE.W   #$D7FC, $403C * ADDA.W    #$DEADBEEF,A1
+  MOVE.L   #$DEADBEEF, $403E
+
+
+* ------ MOVEA TEST ------
+
+  MOVE.W    #$2449, $4000   * MOVEA.L   A1,A2
+  MOVE.W    #$364A, $4002   * MOVEA.W   A2,A3
+  MOVE.W    #$284B, $4004   * MOVEA.L   A3,A4
+  MOVE.W    #$3A4C, $4006   * MOVEA.W   A4,A5
+  MOVE.W    #$2C4D, $4008   * MOVEA.L   A5,A6
