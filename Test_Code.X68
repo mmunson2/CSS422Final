@@ -74,6 +74,44 @@ JSR Test
   MOVE.L   #$DEADBEEF, $403E
 
 
+* ------ MOVE TEST ------
+  MOVE.W    #$1200, $4000   * MOVE.B    D0,D1
+  MOVE.W    #$3804, $4002   * MOVE.W    D4,D4
+  MOVE.W    #$2E07, $4004   * MOVE.L    D7,D7
+
+  MOVE.W    #$380C, $4006   * MOVE.W    A4,D4
+  MOVE.W    #$2E0F, $4008   * MOVE.L    A7,D7
+
+  MOVE.W    #$1290, $400A   * MOVE.B    (A0),(A1)
+  MOVE.W    #$3894, $400C   * MOVE.W    (A4),(A4)
+  MOVE.W    #$2E97, $400E   * MOVE.L    (A7),(A7)
+
+  MOVE.W    #$12D8, $4010   * MOVE.B    (A0)+,(A1)+
+  MOVE.W    #$38DC, $4012   * MOVE.W    (A4)+,(A4)+
+  MOVE.W    #$2EDF, $4014   * MOVE.L    (A7)+,(A7)+
+
+  MOVE.W    #$1320, $4016   * MOVE.B    -(A0),-(A1)
+  MOVE.W    #$3924, $4018   * MOVE.W    -(A4),-(A4)
+  MOVE.W    #$2F27, $401A   * MOVE.L    -(A7),-(A7)
+
+  MOVE.W    #$33CC, $401C   * MOVE.W    A4,TEST2
+  MOVE.L    #$00001028, $401E * (Data portion)
+
+  MOVE.W    #$23CF, $4022   * MOVE.L    A7,TEST3
+  MOVE.L    #$00001028, $4024 * Data portion)
+
+  MOVE.W    #$3239, $402C   * MOVE.W    TEST2,D1
+  MOVE.L    #$00001034, $402E * (Data portion)
+
+  MOVE.W    #$2439, $4032   * MOVE.L    TEST3,D2
+  MOVE.L    #$00001034, $4034 * Data portion)
+
+  MOVE.W    #$23F9, $4038 * MOVE.L  TEST1,TEST2
+  MOVE.L    #$0000100A, $403A * Data1 Portion
+  MOVE.L    #$0000100C, $403E * Data2 Portion
+
+
+
 * ------ MOVEA TEST ------
 
   MOVE.W    #$2449, $4000   * MOVEA.L   A1,A2
@@ -84,8 +122,8 @@ JSR Test
 
 * ------ ASL TEST ------
    MOVE.W     #$E940,$4000	* ASL	#8,D0
-   MOVE.W     #$E1D1,$4004	* ASL 	(A1) 
-   MOVE.W     #$E1C9,$4008	* ASL 	A1 (ILLEGAL) 
+   MOVE.W     #$E1D1,$4004	* ASL 	(A1)
+   MOVE.W     #$E1C9,$4008	* ASL 	A1 (ILLEGAL)
 
 * ------ ASR TEST ------
    MOVE.W     #$E061,$400C	* ASR	D0,D1
@@ -107,7 +145,7 @@ JSR Test
    MOVE.W     #$E55C,$4034	* ROL.W #2,D4
    MOVE.W     #$E79D,$4038	* ROL.L #3,D5
    MOVE.W     #$E7D5,$403C	* ROL 	(A5)
-   MOVE.W     #$E7C0,$4040	* ROL 	D0 (ILLEGAL)	
+   MOVE.W     #$E7C0,$4040	* ROL 	D0 (ILLEGAL)
 
 * ------ ROR TEST ------
    MOVE.W     #$E21B,$4044	* ROR.B	#1,D3
@@ -115,4 +153,3 @@ JSR Test
    MOVE.W     #$E69D,$404C	* ROR.L	#3,D5
    MOVE.W     #$E6D6,$4050	* ROR 	(A6)
    MOVE.W     #$E6C0,$4054	* ROL 	(D0) (ILLEGAL)
-  

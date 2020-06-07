@@ -29,6 +29,8 @@ LOOP_INC       DS.W    1    * How many words to skip to find the next opcode
 LOOP_INDEX     DS.L    1    * The opcode loop's index
 
 DATA1          DS.L    1	* The first line of opcode data
+DATA1_IN_USE   DS.W    1  * Boolean: Whether or not DATA1 is being used
+
 DATA2          DS.L    1	* The second line of opcode data
 
 START:
@@ -65,39 +67,6 @@ INITIALIZE
 *   MOVE.W    #$6FE6, $4008
 *   MOVE.W    #$67E2, $400A
 
-* ------ ASL TEST ------
-   MOVE.W     #$E140,$4000	* ASL	#8,D0
-   MOVE.W     #$E1D1,$4004	* ASL 	(A1) 
-   MOVE.W     #$E1C9,$4008	* ASL 	A1 (ILLEGAL) 
-
-* ------ ASR TEST ------
-   MOVE.W     #$E061,$400C	* ASR	D0,D1
-   MOVE.W     #$E0D2,$4010	* ASR 	(A2)
-   MOVE.W     #$E0CA,$4014	* ASR 	A2 (ILLEGAL)
-
-* ------ LSL TEST ------
-   MOVE.W     #$EB49,$4018	* LSL	#5,D1
-   MOVE.W     #$E3E3,$401C	* LSL 	-(A3)
-   MOVE.W     #$E3CB,$4020	* LSL   A3 (ILLEGAL)
-
-* ------ LSR TEST ------
-   MOVE.W     #$E26A,$4024	* LSR	D1,D2
-   MOVE.W     #$E2DC,$4028	* LSR 	(A4)+
-   MOVE.W     #$E2D2,$402C	* LSR 	A4 (ILLEGAL)
-
-* ------ ROL TEST ------
-   MOVE.W     #$E31B,$4030 	* ROL.B	#1,D3
-   MOVE.W     #$E55C,$4034	* ROL.W #2,D4
-   MOVE.W     #$E79D,$4038	* ROL.L #3,D5
-   MOVE.W     #$E7D5,$403C	* ROL 	(A5)
-   MOVE.W     #$E7C0,$4040	* ROL 	D0 (ILLEGAL)	
-
-* ------ ROR TEST ------
-   MOVE.W     #$E21B,$4044	* ROR.B	#1,D3
-   MOVE.W     #$E45C,$4048	* ROR.W #2,D4
-   MOVE.W     #$E69D,$404C	* ROR.L	#3,D5
-   MOVE.W     #$E6D6,$4050	* ROR 	(A6)
-   MOVE.W     #$E6C0,$4054	* ROL 	(D0) (ILLEGAL)
   MOVE.L    #$4000, START_ADDR
   MOVE.L    #$5000, END_ADDR
 
@@ -132,7 +101,7 @@ INITIALIZE
 OPCODE_LOOP
 
     MOVEA.L LOOP_INDEX,A0
-    CMPA.L  END_ADDR, A0  * Check to see if we're done
+    CMP.L  END_ADDR, A0  * Check to see if we're done
     BGT     DONE
 
 * ------ Reset Loop Variables ------
@@ -150,6 +119,7 @@ OPCODE_LOOP
     ADDA     #4,A2
     MOVE.L  (A2),DATA2   * Fill DATA2 with the long after DATA1
 
+    MOVE.W  #0,DATA1_IN_USE  * Reset data boolean
 
 * ------ Execute Subroutines ------
     JSR     PRINTADDR             * Print the memory address
@@ -217,6 +187,18 @@ BRANCHBLOCK
   CMP.W   #$4E75,D7
   BEQ   RTS
 
+
+* ------ MOVE / MOVEA ------
+  CLR.L   D0
+  MOVE.W  D7,D0
+
+  ROL.L   #$02,D0 * Move the first two bits into the upper word
+  SWAP    D0      * Swap the upper word and the lower word
+
+  CMP.W   #0,D0
+  BEQ     MOVE_MOVEA
+
+
 * ---- ADDQ ----
   CLR.L   D0
   MOVE.W  D7,D0
@@ -247,7 +229,7 @@ BRANCHBLOCK
   CMP.W   #$E000,D0
   BEQ     LSX_ASX_ROX
 
-* ---- 10 BIT OPCODES ----
+* ---- JSR ----
   CLR.L   D0
   MOVE.W  D7,D0
   AND.W   #$FFC0,D0   * Mask opcode to get first 10 bits only
@@ -272,6 +254,210 @@ BRANCHBLOCK
 *    \|_______| \|__|      \|_______| \|_______| \|_______| \|_______|
 *
 *-------------------------------------------------------------------------------
+
+*-------------------------------------------------------------------------------
+* MOVE_MOVEA
+*
+* Both opcodes start with 00 so we need to figure out which is which
+*
+*
+*-------------------------------------------------------------------------------
+MOVE_MOVEA
+    CLR.L   D0
+    MOVE.W  D7,D0
+
+    ROR     #$6,D0    *Get bits 6, 7, and 8
+    ANDI.B  #$07,D0   * Mask against 111
+
+    CMPI.B  #1,D0     * If bits equal 001, it's MOVEA
+    BEQ     MOVEA
+
+    BRA     MOVE      * Else it's MOVE
+
+*-------------------------------------------------------------------------------
+* MOVE
+*
+* JESUS H. CHRIST
+*
+*-------------------------------------------------------------------------------
+MOVE
+
+  MOVE.L    D7,D0 * Load the print subroutine into intermediate address
+
+* ------ Print "MOVE" ------
+
+  LEA       PRINT_MOVE,A5
+  MOVE.L  A5, -(SP)       * Put the print subroutine jump onto the stack
+  ADD.W   #4,PRINT_COUNT  * Increment Print Count by 1 long
+
+* ------ Determine Size ------
+  ROR.W   #$8,D0 * Shift a total of 12 bits to retrieve SIZE designator
+  ROR.W   #$4,D0
+  AND.W   #$7,D0 * Mask 111
+
+  CLR.L   D4 * Clear D4 for use as BWL parameter
+
+  CMP.B   #1,D0
+  BEQ     MOVE_B
+  CMP.B   #3,D0
+  BEQ     MOVE_W
+  CMP.B   #2,D0
+  BEQ     MOVE_L
+
+  BRA     PRINT_ILLEGAL
+
+* ------ Size Branching ------
+* MOVE uses a nonstandard size code. We convert it to the standard so we can
+* easily use the existing PUSH_BWL subroutine
+MOVE_B
+  MOVE.B  #0,D4
+  JSR     PUSH_BWL
+  BRA     MOVE_SIZE_CONTINUE
+
+MOVE_W
+  MOVE.B  #1,D4
+  JSR     PUSH_BWL
+  BRA     MOVE_SIZE_CONTINUE
+
+MOVE_L
+  MOVE.B  #2,D4
+  JSR     PUSH_BWL
+  BRA     MOVE_SIZE_CONTINUE
+
+MOVE_SIZE_CONTINUE
+
+* ------ Print Source ------
+  MOVE.L    D7,D6
+  JSR       PUSH_EA_MODE_ID
+
+* ------ Print a comma ------
+  LEA     PRINT_COMMA,A5   * Load the print subroutine
+  MOVE.L  A5, -(SP)       * Put the print subroutine jump onto the stack
+  ADD.W   #4,PRINT_COUNT  * Increment Print Count by 1 long
+
+* ------ Print Destination ------
+* Unfortunately our PUSH_EA_MODE_ID wasn't designed for this :/
+
+  MOVE.L    D7,D0 * D0 holds MODE bits
+  MOVE.L    D7,D1 * D1 holds REGISTER bits
+
+  ROR.W     #$6,D0 * Get the three mode bits
+  AND.W     #$7,D0 * Mask 111
+
+  ROR.W     #$8,D1 * Get the three register bits
+  ROR.W     #$1,D1
+  AND.W     #$7,D1 * Mask 1111
+
+* ---- Branching Block ----
+
+
+  MOVE.B  D1,MISC_NUMBER * For modes that print the register bits as a number
+
+  CMP.B   #0,D0			*000 -> Register
+  BEQ     MOVE_MODE_DN
+  CMP.B   #2,D0			*010 -> Address Register   Indirect
+  BEQ     MOVE_MODE_AN_INDIRECT
+  CMP.B   #3,D0			*011 -> Address Register  (Indirect)+
+  BEQ     MOVE_MODE_AN_POST_INC
+  CMP.B   #4,D0			*100 -> Address Register -(Indirect)
+  BEQ     MOVE_MODE_AN_PRE_DEC
+  CMP.B   #7,D0			*111 -> All Data Operations
+  BEQ     MOVE_MODE_ELSE
+
+  BRA     PRINT_ILLEGAL
+
+*________________________________________
+* Load Register Print Label
+*----------------------------------------
+MOVE_MODE_DN
+  LEA   PRINT_MISC_NUMBER_AS_REGISTER,A5
+  BRA   MOVE_MODE_FINISH
+*________________________________________
+* Load (Address Register) Print Label
+*----------------------------------------
+MOVE_MODE_AN_INDIRECT
+  LEA   PRINT_MISC_ADDRESS_IND,A5
+  BRA   MOVE_MODE_FINISH
+*________________________________________
+* Load (Address Register)+ Print Label
+*----------------------------------------
+MOVE_MODE_AN_POST_INC
+  LEA   PRINT_MISC_POST_INC,A5
+  BRA   MOVE_MODE_FINISH
+*________________________________________
+* Load -(Address Register) Print Label
+*----------------------------------------
+MOVE_MODE_AN_PRE_DEC
+  LEA   PRINT_MISC_PRE_DEC,A5
+  BRA   MOVE_MODE_FINISH
+
+*________________________________________
+* Handle Data Branching Logic
+*----------------------------------------
+MOVE_MODE_ELSE
+
+    CMP.B   #0,D1
+    BEQ     MOVE_MODE_IND_SHORT
+
+    CMP.B   #1,D1
+    BEQ     MOVE_MODE_IND_LONG
+
+* ------ Data is short ------
+MOVE_MODE_IND_SHORT
+    CMP.W  #1,DATA1_IN_USE
+    BEQ     MOVE_MODE_IND_SHORT_DATA2
+    ADD.W           #2, LOOP_INC * Adjust the Loop increment to skip the data
+    MOVE.W  #1,DATA1_IN_USE
+
+    LEA     PRINT_EA_MODE_ID_IND_SHORT,A5
+    BRA     MOVE_MODE_FINISH
+
+* ------ Data is short, DATA1 is in use ------
+MOVE_MODE_IND_SHORT_DATA2
+    ADD.W           #2, LOOP_INC * Adjust the Loop increment to skip the data
+
+    LEA     PRINT_EA_MODE_ID_IND_SHORT_DATA2,A5
+    BRA     MOVE_MODE_FINISH
+
+* ------ Data is Long ------
+MOVE_MODE_IND_LONG
+    CMP.W  #1,DATA1_IN_USE
+    BEQ     MOVE_MODE_IND_LONG_DATA2
+
+    LEA     PRINT_EA_MODE_ID_IND_LONG,A5
+    ADD.W           #4,LOOP_INC * Adjust the Loop increment to skip the data
+    MOVE.W  #1,DATA1_IN_USE
+    BRA     MOVE_MODE_FINISH
+
+
+* ------ Data is Long, DATA1 is in use ------
+MOVE_MODE_IND_LONG_DATA2
+
+    LEA     PRINT_EA_MODE_ID_IND_LONG_DATA2,A5
+    ADD.W           #4,LOOP_INC * Adjust the Loop increment to skip the data
+    BRA     MOVE_MODE_FINISH
+
+
+MOVE_MODE_FINISH
+
+  MOVE.L  A5, -(SP)       * Put the print subroutine jump onto the stack
+  ADD.W           #4,PRINT_COUNT
+
+  ADD.W  #2,LOOP_INC     * Increment the loop counter by 2 bytes
+
+  BRA   PRINT_OPCODE
+
+
+*-------------------------------------------------------------------------------
+* MOVEA
+*
+*
+*
+*-------------------------------------------------------------------------------
+MOVEA
+
+    BRA   PRINT_OPCODE
+
 *-------------------------------------------------------------------------------
 *   LSX_ASX_ROX
 *
@@ -279,18 +465,6 @@ BRANCHBLOCK
 *-------------------------------------------------------------------------------
 LSX_ASX_ROX
   MOVE.L    D7,D0      * Reset D0
-  AND.W     #$FEC0,D0
-  
-  CMP.W #$E0C0,D0
-  BEQ   ASX
-
-  CMP.W #$E2C0,D0
-  BEQ   LSX
-
-  CMP.W #$E6C0,D0
-  BEQ   ROX
-
-  MOVE.L    D7,D0      * Reset D0  
   AND.W     #$18,D0  * Isolate bits 4,3
 
   CMP.W #0,D0
@@ -464,7 +638,7 @@ LSX_ASX_ROX_MEM
 
   JSR     PUSH_EA_MODE_ID
   BRA LSX_ASX_ROX_CONTINUE2
-  
+
 LSX_ASX_ROX_PRINT_ILLEGAL
   ADD #4,SP
   BRA PRINT_ILLEGAL
@@ -474,8 +648,8 @@ LSX_ASX_ROX_CONTINUE2
   BRA   PRINT_OPCODE
 
 LSX_ASX_ROX_RESET_D7
-  MOVE.L    D7,D0
-  BRA   PRINT_OPCODE_LOOP_RETURN
+    MOVE.L    D7,D0
+    BRA   PRINT_OPCODE_LOOP_RETURN
 
 *-------------------------------------------------------------------------------
 *   BCC
@@ -661,7 +835,7 @@ ADDA_CONTINUE
   MOVE.L  A5, -(SP)       * Put the print subroutine jump onto the stack
   ADD.W   #4,PRINT_COUNT  * Increment Print Count by 1 long
 
-  ADD.W  #2,LOOP_INC     * Increment the loop counter by 4 bytes
+  ADD.W  #2,LOOP_INC     * Increment the loop counter by 2 bytes
 
   BRA   PRINT_OPCODE
 
@@ -944,7 +1118,7 @@ PRINT_OPCODE_LOOP
 
   MOVEA.W   PRINT_OPCODE_LOOP_INDEX,A1
 
-  CMPA.W   PRINT_COUNT,A1 * Check if we're done
+  CMP.W   PRINT_COUNT,A1 * Check if we're done
   BGE     PRINT_OPCODE_LOOP_FINISH
 
   MOVE.L  -(SP),A2  * Pop the next item on the stack and put it in A1
@@ -1087,17 +1261,20 @@ PUSH_EA_MODE_ID_ELSE
 
 PUSH_EA_MODE_ID_IND_SHORT
     LEA     PRINT_EA_MODE_ID_IND_SHORT,A5
-    ADD.W           #4, LOOP_INC * Adjust the Loop increment to skip the data
+    ADD.W           #2, LOOP_INC * Adjust the Loop increment to skip the data
+    MOVE.W  #1,DATA1_IN_USE
     BRA     PUSH_EA_MODE_ID_FINISH
 
 PUSH_EA_MODE_ID_IND_LONG
     LEA     PRINT_EA_MODE_ID_IND_LONG,A5
-    ADD.W           #8,LOOP_INC * Adjust the Loop increment to skip the data
+    ADD.W           #4,LOOP_INC * Adjust the Loop increment to skip the data
+    MOVE.W  #1,DATA1_IN_USE
     BRA     PUSH_EA_MODE_ID_FINISH
 
 PUSH_EA_MODE_ID_ABS_DATA
     LEA     PRINT_EA_MODE_ID_ABS_DATA,A5
-    ADD.W           #8,LOOP_INC * Adjust the Loop increment to skip the data
+    ADD.W           #4,LOOP_INC * Adjust the Loop increment to skip the data
+        MOVE.W  #1,DATA1_IN_USE
     BRA     PUSH_EA_MODE_ID_FINISH
 
 *________________________________________
@@ -1519,6 +1696,132 @@ PRINT_MISC_NUMBER_AS_REGISTER
 
 *-------------------------------------------------------------------------------
 *
+*		PRINT_MISC_PRE_DEC
+*________________________________________
+* Register Use Summary:
+*
+* D0: LOCAL VARIABLE  - Trap task designator
+*
+* D1: LOCAL VARIABLE  - MISC_NUMBER to be printed
+*
+* D2: LOCAL VARIABLE  - Base of MISC_NUMBER
+*
+* A1: LOCAL VARIABLE  - String address
+*-------------------------------------------------------------------------------
+PRINT_MISC_PRE_DEC
+
+    LEA             STRING_MINUS,A1
+    MOVE.B          #14,D0
+    TRAP            #15
+
+    LEA             STRING_LEFT_PAREN,A1
+    MOVE.B          #14,D0
+    TRAP            #15
+
+    LEA             STRING_A,A1
+    MOVE.B          #14,D0
+    TRAP            #15
+
+    CLR.L   D0
+    CLR.L   D1
+    CLR.L   D2
+
+    MOVE.B  #15,D0
+    MOVE.B  MISC_NUMBER,D1
+    MOVE.B  #10,D2
+    TRAP #15
+
+    LEA             STRING_RIGHT_PAREN,A1
+    MOVE.B          #14,D0
+    TRAP            #15
+
+    BRA     PRINT_OPCODE_LOOP_RETURN
+
+*-------------------------------------------------------------------------------
+*
+*		PRINT_MISC_POST_INC
+*________________________________________
+* Register Use Summary:
+*
+* D0: LOCAL VARIABLE  - Trap task designator
+*
+* D1: LOCAL VARIABLE  - MISC_NUMBER to be printed
+*
+* D2: LOCAL VARIABLE  - Base of MISC_NUMBER
+*
+* A1: LOCAL VARIABLE  - String address
+*-------------------------------------------------------------------------------
+PRINT_MISC_POST_INC
+
+    LEA             STRING_LEFT_PAREN,A1
+    MOVE.B          #14,D0
+    TRAP            #15
+
+    LEA             STRING_A,A1
+    MOVE.B          #14,D0
+    TRAP            #15
+
+    CLR.L   D0
+    CLR.L   D1
+    CLR.L   D2
+
+    MOVE.B  #15,D0
+    MOVE.B  MISC_NUMBER,D1
+    MOVE.B  #10,D2
+    TRAP #15
+
+    LEA             STRING_RIGHT_PAREN,A1
+    MOVE.B          #14,D0
+    TRAP            #15
+
+    LEA             STRING_PLUS,A1
+    MOVE.B          #14,D0
+    TRAP            #15
+
+    BRA     PRINT_OPCODE_LOOP_RETURN
+
+*-------------------------------------------------------------------------------
+*
+*		PRINT_MISC_ADDRESS_IND
+*________________________________________
+* Register Use Summary:
+*
+* D0: LOCAL VARIABLE  - Trap task designator
+*
+* D1: LOCAL VARIABLE  - MISC_NUMBER to be printed
+*
+* D2: LOCAL VARIABLE  - Base of MISC_NUMBER
+*
+* A1: LOCAL VARIABLE  - String address
+*-------------------------------------------------------------------------------
+PRINT_MISC_ADDRESS_IND
+
+    LEA             STRING_LEFT_PAREN,A1
+    MOVE.B          #14,D0
+    TRAP            #15
+
+    LEA             STRING_A,A1
+    MOVE.B          #14,D0
+    TRAP            #15
+
+    CLR.L   D0
+    CLR.L   D1
+    CLR.L   D2
+
+    MOVE.B  #15,D0
+    MOVE.B  MISC_NUMBER,D1
+    MOVE.B  #10,D2
+    TRAP #15
+
+    LEA             STRING_RIGHT_PAREN,A1
+    MOVE.B          #14,D0
+    TRAP            #15
+
+    BRA     PRINT_OPCODE_LOOP_RETURN
+
+
+*-------------------------------------------------------------------------------
+*
 *		PRINT MISC_NUMBER_AS_DATA
 *________________________________________
 * Register Use Summary:
@@ -1565,6 +1868,72 @@ PRINT_MISC_NUMBER_AS_DATA
 *-------------------------------------------------------------------------------
 PRINT_ADDQ
     LEA             STRING_ADDQ,A1	* Load "ADDQ" into A1
+    MOVE.B          #14,D0		* Set trap task to String
+    TRAP            #15			* Print ", "
+    BRA             PRINT_OPCODE_LOOP_RETURN
+
+*-------------------------------------------------------------------------------
+*
+*		PRINT MOVE
+*________________________________________
+* Register Use Summary:
+*
+* D0: LOCAL VARIABLE  - Trap task designator
+*
+* A1: LOCAL VARIABLE  - String address
+*-------------------------------------------------------------------------------
+PRINT_MOVE
+    LEA             STRING_MOVE,A1	* Load "MOVE" into A1
+    MOVE.B          #14,D0		* Set trap task to String
+    TRAP            #15			* Print ", "
+    BRA             PRINT_OPCODE_LOOP_RETURN
+
+*-------------------------------------------------------------------------------
+*
+*		PRINT MOVEA
+*________________________________________
+* Register Use Summary:
+*
+* D0: LOCAL VARIABLE  - Trap task designator
+*
+* A1: LOCAL VARIABLE  - String address
+*-------------------------------------------------------------------------------
+PRINT_MOVEA
+    LEA             STRING_MOVEA,A1	* Load "MOVEA" into A1
+    MOVE.B          #14,D0		* Set trap task to String
+    TRAP            #15			* Print ", "
+    BRA             PRINT_OPCODE_LOOP_RETURN
+
+
+*-------------------------------------------------------------------------------
+*
+*		PRINT MOVEQ
+*________________________________________
+* Register Use Summary:
+*
+* D0: LOCAL VARIABLE  - Trap task designator
+*
+* A1: LOCAL VARIABLE  - String address
+*-------------------------------------------------------------------------------
+PRINT_MOVEQ
+    LEA             STRING_MOVEQ,A1	* Load "MOVEQ" into A1
+    MOVE.B          #14,D0		* Set trap task to String
+    TRAP            #15			* Print ", "
+    BRA             PRINT_OPCODE_LOOP_RETURN
+
+
+*-------------------------------------------------------------------------------
+*
+*		PRINT MOVEM
+*________________________________________
+* Register Use Summary:
+*
+* D0: LOCAL VARIABLE  - Trap task designator
+*
+* A1: LOCAL VARIABLE  - String address
+*-------------------------------------------------------------------------------
+PRINT_MOVEM
+    LEA             STRING_MOVEM,A1	* Load "MOVEM" into A1
     MOVE.B          #14,D0		* Set trap task to String
     TRAP            #15			* Print ", "
     BRA             PRINT_OPCODE_LOOP_RETURN
@@ -1821,6 +2190,34 @@ PRINT_EA_MODE_ID_IND_SHORT
 
 *-------------------------------------------------------------------------------
 *
+*		PRINT EFFECTIVE ADDRESS MODE IDENTIFIER - WORD DATA - DATA2
+*
+*________________________________________
+* Register Use Summary:
+*
+* D0: LOCAL VARIABLE  - Trap task designator
+* D1: LOCAL VARIABLE  - Dn Register number to display
+* D7: CONST PARAMETER - The opcode word
+*
+* A1: LOCAL VARIABLE  - String address
+*-------------------------------------------------------------------------------
+PRINT_EA_MODE_ID_IND_SHORT_DATA2
+    LEA             STRING_DOLLAR,A1
+    MOVE.B          #14,D0
+    TRAP            #15
+
+    MOVE.L          DATA2,D1
+    SWAP            D1              * We only want the upper word
+    AND             #$0000FFFF,D1   * Bit mask for upper word
+
+    MOVEQ           #15,D0
+    MOVEQ           #16,D2
+    TRAP            #15
+
+    BRA             PRINT_OPCODE_LOOP_RETURN
+
+*-------------------------------------------------------------------------------
+*
 *		PRINT EFFECTIVE ADDRESS MODE IDENTIFIER - LONG DATA
 *
 *________________________________________
@@ -1838,6 +2235,31 @@ PRINT_EA_MODE_ID_IND_LONG
     TRAP            #15
 
     MOVE.L          DATA1,D1
+    MOVEQ           #15,D0
+    MOVEQ           #16,D2
+    TRAP            #15
+
+    BRA             PRINT_OPCODE_LOOP_RETURN
+
+*-------------------------------------------------------------------------------
+*
+*		PRINT EFFECTIVE ADDRESS MODE IDENTIFIER - LONG DATA - DATA2
+*
+*________________________________________
+* Register Use Summary:
+*
+* D0: LOCAL VARIABLE  - Trap task designator
+* D1: LOCAL VARIABLE  - Dn Register number to display
+* D7: CONST PARAMETER - The opcode word
+*
+* A1: LOCAL VARIABLE  - String address
+*-------------------------------------------------------------------------------
+PRINT_EA_MODE_ID_IND_LONG_DATA2
+    LEA             STRING_DOLLAR,A1
+    MOVE.B          #14,D0
+    TRAP            #15
+
+    MOVE.L          DATA2,D1
     MOVEQ           #15,D0
     MOVEQ           #16,D2
     TRAP            #15
@@ -1867,6 +2289,35 @@ PRINT_EA_MODE_ID_ABS_DATA
     TRAP            #15
 
     MOVE.L          DATA1,D1
+    MOVEQ           #15,D0
+    MOVEQ           #16,D2
+    TRAP            #15
+
+    BRA             PRINT_OPCODE_LOOP_RETURN
+
+*-------------------------------------------------------------------------------
+*
+*		PRINT EFFECTIVE ADDRESS MODE IDENTIFIER - ABSOLUTE DATA2
+*
+*________________________________________
+* Register Use Summary:
+*
+* D0: LOCAL VARIABLE  - Trap task designator
+* D1: LOCAL VARIABLE  - Dn Register number to display
+* D7: CONST PARAMETER - The opcode word
+*
+* A1: LOCAL VARIABLE  - String address
+*-------------------------------------------------------------------------------
+PRINT_EA_MODE_ID_ABS_DATA2
+    LEA             STRING_POUND,A1
+    MOVE.B          #14,D0
+    TRAP            #15
+
+    LEA             STRING_DOLLAR,A1
+    MOVE.B          #14,D0
+    TRAP            #15
+
+    MOVE.L          DATA2,D1
     MOVEQ           #15,D0
     MOVEQ           #16,D2
     TRAP            #15
@@ -2235,6 +2686,10 @@ STRING_BLE                  DC.B    'BLE ',0
 STRING_BRA                  DC.B    'BRA ',0
 STRING_BGT                  DC.B    'BGT ',0
 STRING_JSR                  DC.B    'JSR    ',0
+STRING_MOVE                 DC.B    'MOVE',0
+STRING_MOVEA                DC.B    'MOVEA',0
+STRING_MOVEQ                DC.B    'MOVEQ',0
+STRING_MOVEM                DC.B    'MOVEM',0
 
 MISC_NUMBER  DS.B    1    * MISC_NUMBER to be printed
 MISC_OPCODE  DS.W    1
@@ -2243,7 +2698,6 @@ MISC_REGISTER DS.B   1
 
 
     END    START
-
 
 
 
