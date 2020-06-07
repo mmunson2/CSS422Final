@@ -81,3 +81,38 @@ JSR Test
   MOVE.W    #$284B, $4004   * MOVEA.L   A3,A4
   MOVE.W    #$3A4C, $4006   * MOVEA.W   A4,A5
   MOVE.W    #$2C4D, $4008   * MOVEA.L   A5,A6
+
+* ------ ASL TEST ------
+   MOVE.W     #$E940,$4000	* ASL	#8,D0
+   MOVE.W     #$E1D1,$4004	* ASL 	(A1) 
+   MOVE.W     #$E1C9,$4008	* ASL 	A1 (ILLEGAL) 
+
+* ------ ASR TEST ------
+   MOVE.W     #$E061,$400C	* ASR	D0,D1
+   MOVE.W     #$E0D2,$4010	* ASR 	(A2)
+   MOVE.W     #$E0CA,$4014	* ASR 	A2 (ILLEGAL)
+
+* ------ LSL TEST ------
+   MOVE.W     #$EB49,$4018	* LSL	#5,D1
+   MOVE.W     #$E3E3,$401C	* LSL 	-(A3)
+   MOVE.W     #$E3CB,$4020	* LSL   A3 (ILLEGAL)
+
+* ------ LSR TEST ------
+   MOVE.W     #$E26A,$4024	* LSR	D1,S2
+   MOVE.W     #$E2DC,$4028	* LSR 	(A4)+
+   MOVE.W     #$E0D2,$402C	* LSR 	A4 (ILLEGAL)
+
+* ------ ROL TEST ------
+   MOVE.W     #$E31B,$4030 	* ROL.B	#1,D3
+   MOVE.W     #$E55C,$4034	* ROL.W #2,D4
+   MOVE.W     #$E79D,$4038	* ROL.L #3,D5
+   MOVE.W     #$E7D5,$403C	* ROL 	(A5)
+   MOVE.W     #$E7C0,$4040	* ROL 	D0 (ILLEGAL)	
+
+* ------ ROR TEST ------
+   MOVE.W     #$E21B,$4044	* ROR.B	#1,D3
+   MOVE.W     #$E45C,$4048	* ROR.W #2,D4
+   MOVE.W     #$E69D,$404C	* ROR.L	#3,D5
+   MOVE.W     #$E6D6,$4050	* ROR 	(A6)
+   MOVE.W     #$E6C0,$4054	* ROL 	(D0) (ILLEGAL)
+  

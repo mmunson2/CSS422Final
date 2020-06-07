@@ -65,6 +65,39 @@ INITIALIZE
 *   MOVE.W    #$6FE6, $4008
 *   MOVE.W    #$67E2, $400A
 
+* ------ ASL TEST ------
+   MOVE.W     #$E140,$4000	* ASL	#8,D0
+   MOVE.W     #$E1D1,$4004	* ASL 	(A1) 
+   MOVE.W     #$E1C9,$4008	* ASL 	A1 (ILLEGAL) 
+
+* ------ ASR TEST ------
+   MOVE.W     #$E061,$400C	* ASR	D0,D1
+   MOVE.W     #$E0D2,$4010	* ASR 	(A2)
+   MOVE.W     #$E0CA,$4014	* ASR 	A2 (ILLEGAL)
+
+* ------ LSL TEST ------
+   MOVE.W     #$EB49,$4018	* LSL	#5,D1
+   MOVE.W     #$E3E3,$401C	* LSL 	-(A3)
+   MOVE.W     #$E3CB,$4020	* LSL   A3 (ILLEGAL)
+
+* ------ LSR TEST ------
+   MOVE.W     #$E26A,$4024	* LSR	D1,D2
+   MOVE.W     #$E2DC,$4028	* LSR 	(A4)+
+   MOVE.W     #$E2D2,$402C	* LSR 	A4 (ILLEGAL)
+
+* ------ ROL TEST ------
+   MOVE.W     #$E31B,$4030 	* ROL.B	#1,D3
+   MOVE.W     #$E55C,$4034	* ROL.W #2,D4
+   MOVE.W     #$E79D,$4038	* ROL.L #3,D5
+   MOVE.W     #$E7D5,$403C	* ROL 	(A5)
+   MOVE.W     #$E7C0,$4040	* ROL 	D0 (ILLEGAL)	
+
+* ------ ROR TEST ------
+   MOVE.W     #$E21B,$4044	* ROR.B	#1,D3
+   MOVE.W     #$E45C,$4048	* ROR.W #2,D4
+   MOVE.W     #$E69D,$404C	* ROR.L	#3,D5
+   MOVE.W     #$E6D6,$4050	* ROR 	(A6)
+   MOVE.W     #$E6C0,$4054	* ROL 	(D0) (ILLEGAL)
   MOVE.L    #$4000, START_ADDR
   MOVE.L    #$5000, END_ADDR
 
@@ -246,6 +279,18 @@ BRANCHBLOCK
 *-------------------------------------------------------------------------------
 LSX_ASX_ROX
   MOVE.L    D7,D0      * Reset D0
+  AND.W     #$FEC0,D0
+  
+  CMP.W #$E0C0,D0
+  BEQ   ASX
+
+  CMP.W #$E2C0,D0
+  BEQ   LSX
+
+  CMP.W #$E6C0,D0
+  BEQ   ROX
+
+  MOVE.L    D7,D0      * Reset D0  
   AND.W     #$18,D0  * Isolate bits 4,3
 
   CMP.W #0,D0
@@ -409,6 +454,9 @@ LSX_ASX_ROX_REGISTER
 
 LSX_ASX_ROX_MEM
   MOVE.L D7,D6
+  AND.L #$38,D6
+  CMP.W #8,D6
+  BLE   LSX_ASX_ROX_PRINT_ILLEGAL
 
   LEA PRINT_FOURSPACE,A5
   MOVE.L    A5,-(SP)
@@ -416,15 +464,18 @@ LSX_ASX_ROX_MEM
 
   JSR     PUSH_EA_MODE_ID
   BRA LSX_ASX_ROX_CONTINUE2
-
+  
+LSX_ASX_ROX_PRINT_ILLEGAL
+  ADD #4,SP
+  BRA PRINT_ILLEGAL
 
 LSX_ASX_ROX_CONTINUE2
   MOVE.W  #4,LOOP_INC
   BRA   PRINT_OPCODE
 
 LSX_ASX_ROX_RESET_D7
-    MOVE.L    D7,D0
-    BRA   PRINT_OPCODE_LOOP_RETURN
+  MOVE.L    D7,D0
+  BRA   PRINT_OPCODE_LOOP_RETURN
 
 *-------------------------------------------------------------------------------
 *   BCC
@@ -2192,6 +2243,7 @@ MISC_REGISTER DS.B   1
 
 
     END    START
+
 
 
 
