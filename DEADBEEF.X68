@@ -51,6 +51,14 @@ INITIALIZE
 
 * ------ Test Initializations ------
 
+* ------ MOVEA TEST ------
+
+  MOVE.W    #$2449, $4000   * MOVEA.L   A1,A2
+  MOVE.W    #$364A, $4002   * MOVEA.W   A2,A3
+  MOVE.W    #$284B, $4004   * MOVEA.L   A3,A4
+  MOVE.W    #$3A4C, $4006   * MOVEA.W   A4,A5
+  MOVE.W    #$2C4D, $4008   * MOVEA.L   A5,A6
+
 
 *  MOVE.W    #$4E91, $4000   * JSR Opcode
 *  MOVE.W    #$4EB9,$4000      * JSR 1016 (1)
@@ -346,7 +354,7 @@ MOVE_SIZE_CONTINUE
 
   ROR.W     #$8,D1 * Get the three register bits
   ROR.W     #$1,D1
-  AND.W     #$7,D1 * Mask 1111
+  AND.W     #$7,D1 * Mask 111
 
 * ---- Branching Block ----
 
@@ -456,7 +464,69 @@ MOVE_MODE_FINISH
 *-------------------------------------------------------------------------------
 MOVEA
 
-    BRA   PRINT_OPCODE
+  MOVE.L    D7,D0 * Load the print subroutine into intermediate address
+
+* ------ Print "MOVEA" ------
+
+  LEA     PRINT_MOVEA,A5
+  MOVE.L  A5, -(SP)       * Put the print subroutine jump onto the stack
+  ADD.W   #4,PRINT_COUNT  * Increment Print Count by 1 long
+
+* ------ Determine Size ------
+  ROR.W   #$8,D0 * Shift a total of 12 bits to retrieve SIZE designator
+  ROR.W   #$4,D0
+  AND.W   #$7,D0 * Mask 111
+
+  CLR.L   D4 * Clear D4 for use as BWL parameter
+
+  CMP.B   #3,D0
+  BEQ     MOVEA_W
+  CMP.B   #2,D0
+  BEQ     MOVEA_L
+
+  BRA     PRINT_ILLEGAL
+
+
+* ------ Size Branching ------
+* MOVEA uses a nonstandard size code. We convert it to the standard so we can
+* easily use the existing PUSH_BWL subroutine
+MOVEA_W
+  MOVE.B  #1,D4
+  JSR     PUSH_BWL
+  BRA     MOVEA_SIZE_CONTINUE
+
+MOVEA_L
+  MOVE.B  #2,D4
+  JSR     PUSH_BWL
+  BRA     MOVEA_SIZE_CONTINUE
+
+MOVEA_SIZE_CONTINUE
+
+* ------ Print Source ------
+  MOVE.L    D7,D6
+  JSR       PUSH_EA_MODE_ID
+
+* ------ Print a comma ------
+  LEA     PRINT_COMMA,A5   * Load the print subroutine
+  MOVE.L  A5, -(SP)       * Put the print subroutine jump onto the stack
+  ADD.W   #4,PRINT_COUNT  * Increment Print Count by 1 long
+
+* ------ Get Destination Address ------
+  MOVE.L    D7,D0
+  ROR.W     #$8,D0 * Get the three register bits
+  ROR.W     #$1,D0
+  AND.W     #$7,D0 * Mask 111
+
+  MOVE.B    D0,MISC_NUMBER
+
+* ------ Print Destination Address ------
+  LEA       PRINT_MISC_NUMBER_AS_ADDRESS,A5
+  MOVE.L  A5, -(SP)       * Put the print subroutine jump onto the stack
+  ADD.W           #4,PRINT_COUNT
+
+  ADD.W  #2,LOOP_INC     * Increment the loop counter by 2 bytes
+
+  BRA   PRINT_OPCODE
 
 *-------------------------------------------------------------------------------
 *   LSX_ASX_ROX
