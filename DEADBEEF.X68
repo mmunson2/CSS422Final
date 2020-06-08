@@ -51,13 +51,12 @@ INITIALIZE
 
 * ------ Test Initializations ------
 
-* ------ MOVEA TEST ------
 
-  MOVE.W    #$2449, $4000   * MOVEA.L   A1,A2
-  MOVE.W    #$364A, $4002   * MOVEA.W   A2,A3
-  MOVE.W    #$284B, $4004   * MOVEA.L   A3,A4
-  MOVE.W    #$3A4C, $4006   * MOVEA.W   A4,A5
-  MOVE.W    #$2C4D, $4008   * MOVEA.L   A5,A6
+* ------ MOVEQ TEST ------
+  MOVE.W    #$7200, $4000   * MOVEQ #0,D1
+  MOVE.W    #$7401, $4002   * MOVEQ #1,D2
+  MOVE.W    #$7E0A, $4004   * MOVEQ #10,D7
+  MOVE.W    #$7AFF, $4006   * MOVEQ #$FF,D5
 
 
 *  MOVE.W    #$4E91, $4000   * JSR Opcode
@@ -128,6 +127,8 @@ OPCODE_LOOP
     MOVE.L  (A2),DATA2   * Fill DATA2 with the long after DATA1
 
     MOVE.W  #0,DATA1_IN_USE  * Reset data boolean
+    MOVE.B  #0,MISC_NUMBER   * Reset MISC_NUMBER
+    MOVE.B  #0,MISC_REGISTER * Reset MISC_REGISTER
 
 * ------ Execute Subroutines ------
     JSR     PRINTADDR             * Print the memory address
@@ -206,6 +207,24 @@ BRANCHBLOCK
   CMP.W   #0,D0
   BEQ     MOVE_MOVEA
 
+* ------ MOVEQ ------
+  CLR.L   D0
+  CLR.L   D1
+  MOVE.W  D7,D0
+
+  ROR.W   #$8,D0 * Check bit 8 to make sure it's zero
+  MOVE.W  D0,D1 * D1 is where we'll do the mask
+  ANDI.W  #1,D1 * Mask 1
+
+  CMP.W   #0,D1
+  BNE     BRANCHBLOCK_MOVEQ_END
+
+  ROR.W   #$4,D0 * Check bits 12-15 for 0111
+  AND.W   #$F,D0
+  CMP.B   #$7,D0
+  BEQ     MOVEQ
+
+BRANCHBLOCK_MOVEQ_END * Go here if it's not MOVEQ
 
 * ---- ADDQ ----
   CLR.L   D0
@@ -262,6 +281,57 @@ BRANCHBLOCK
 *    \|_______| \|__|      \|_______| \|_______| \|_______| \|_______|
 *
 *-------------------------------------------------------------------------------
+
+
+*-------------------------------------------------------------------------------
+* MOVEQ
+* Assumption: Bit 8 is checked for zero so this subroutine is always valid
+*
+*-------------------------------------------------------------------------------
+MOVEQ
+
+  CLR.L   D0
+  MOVE.W  D7,D0
+
+* ------ Print "MOVEQ" ------
+
+  LEA     PRINT_MOVEQ,A5
+  MOVE.L  A5, -(SP)       * Put the print subroutine jump onto the stack
+  ADD.W   #4,PRINT_COUNT  * Increment Print Count by 1 long
+
+* ------ Print Data ------
+
+  AND.W   #$FF,D0 * Get bits 0-7
+  MOVE.B  D0,MISC_NUMBER
+
+  LEA     PRINT_MISC_NUMBER_AS_DATA,A5   * Load the print subroutine
+  MOVE.L  A5, -(SP)       * Put the print subroutine jump onto the stack
+  ADD.W   #4,PRINT_COUNT  * Increment Print Count by 1 long
+
+* ------ Print a comma ------
+  LEA     PRINT_COMMA,A5   * Load the print subroutine
+  MOVE.L  A5, -(SP)       * Put the print subroutine jump onto the stack
+  ADD.W   #4,PRINT_COUNT  * Increment Print Count by 1 long
+
+* ------ Print Register ------
+
+  MOVE.W  D7,D0
+  ROR.W   #8,D0 *Shift to get bits 9 - 11
+  ROR.W   #1,D0
+
+  AND.W   #7,D0 * Mask 111
+  MOVE.B  D0,MISC_REGISTER
+
+  LEA     PRINT_MISC_REGISTER,A5   * Load the print subroutine
+  MOVE.L  A5, -(SP)       * Put the print subroutine jump onto the stack
+  ADD.W   #4,PRINT_COUNT  * Increment Print Count by 1 long
+
+  ADD.W  #2,LOOP_INC     * Increment the loop counter by 2 bytes
+
+  BRA   PRINT_OPCODE
+
+
+
 
 *-------------------------------------------------------------------------------
 * MOVE_MOVEA
@@ -1766,6 +1836,39 @@ PRINT_MISC_NUMBER_AS_REGISTER
 
 *-------------------------------------------------------------------------------
 *
+*		PRINT MISC_REGISTER
+*________________________________________
+* Register Use Summary:
+*
+* D0: LOCAL VARIABLE  - Trap task designator
+*
+* D1: LOCAL VARIABLE  - MISC_NUMBER to be printed
+*
+* D2: LOCAL VARIABLE  - Base of MISC_NUMBER
+*
+* A1: LOCAL VARIABLE  - String address
+*-------------------------------------------------------------------------------
+PRINT_MISC_REGISTER
+
+    LEA             STRING_D,A1
+    MOVE.B          #14,D0
+    TRAP            #15
+
+    CLR.L   D0
+    CLR.L   D1
+    CLR.L   D2
+
+    MOVE.B  #15,D0
+    MOVE.B  MISC_REGISTER,D1
+    MOVE.B  #10,D2
+    TRAP #15
+
+    BRA     PRINT_OPCODE_LOOP_RETURN
+
+
+
+*-------------------------------------------------------------------------------
+*
 *		PRINT_MISC_PRE_DEC
 *________________________________________
 * Register Use Summary:
@@ -1907,10 +2010,6 @@ PRINT_MISC_ADDRESS_IND
 PRINT_MISC_NUMBER_AS_DATA
 
     LEA             STRING_POUND,A1
-    MOVE.B          #14,D0
-    TRAP            #15
-
-    LEA             STRING_DOLLAR,A1
     MOVE.B          #14,D0
     TRAP            #15
 
@@ -2758,7 +2857,7 @@ STRING_BGT                  DC.B    'BGT ',0
 STRING_JSR                  DC.B    'JSR    ',0
 STRING_MOVE                 DC.B    'MOVE',0
 STRING_MOVEA                DC.B    'MOVEA',0
-STRING_MOVEQ                DC.B    'MOVEQ',0
+STRING_MOVEQ                DC.B    'MOVEQ    ',0
 STRING_MOVEM                DC.B    'MOVEM',0
 
 MISC_NUMBER  DS.B    1    * MISC_NUMBER to be printed
