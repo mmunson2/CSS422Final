@@ -120,6 +120,15 @@ JSR Test
   MOVE.W    #$3A4C, $4006   * MOVEA.W   A4,A5
   MOVE.W    #$2C4D, $4008   * MOVEA.L   A5,A6
 
+
+* ------ MOVEQ TEST ------
+
+  MOVE.W    #$7200, $4000   * MOVEQ #0,D1
+  MOVE.W    #$7401, $4002   * MOVEQ #1,D2
+  MOVE.W    #$7E0A, $4004   * MOVEQ #10,D7
+  MOVE.W    #$7AFF, $4006   * MOVEQ #255,D5
+
+
 * ------ ASL TEST ------
    MOVE.W     #$E940,$4000	* ASL	#8,D0
    MOVE.W     #$E1D1,$4004	* ASL 	(A1)
