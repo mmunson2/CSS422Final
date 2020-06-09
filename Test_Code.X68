@@ -111,6 +111,30 @@ JSR Test
   MOVE.L    #$0000100C, $403E * Data2 Portion
 
 
+* ------ MOVEM TEST ------
+
+  MOVE.L    #$48911400, $4000 * MOVEM.W   A2/A4, (A1)
+  MOVE.L    #$48D10014, $4004 * MOVEM.L   D2/D4, (A1)
+  MOVE.L    #$48A20180, $4008 * MOVEM.W   D7/A0, -(A2)
+  MOVE.L    #$48E20FF8, $400C * MOVEM.L   D4-A4, -(A2)
+
+  MOVE.L    #$48B9FFFF, $4010 * MOVEM.W   D0-A7, $1040
+  MOVE.L    #$00001040, $4014 * (EA Data)
+
+  MOVE.L    #$48F9FFFF, $4018 * MOVEM.W   D0-A7, $1042
+  MOVE.L    #$00001042, $401C * (EA Data)
+
+  MOVE.L    #$4C911400, $4020 * MOVEM.W   (A1), A2/A4
+  MOVE.L    #$4CD10014, $4024 * MOVEM.L   (A1), D2/D4
+  MOVE.L    #$4C9A0180, $4028 * MOVEM.W   (A2)+, D7/A0
+  MOVE.L    #$4CDA1FF0, $402C * MOVEM.L   (A2)+, D4-A4
+
+  MOVE.L    #$4CB9FFFF, $4030 * MOVEM.W $1040, D0-A7
+  MOVE.L    #$00001040, $4034 * (EA Data)
+
+  MOVE.L    #$4CF9FFFF, $4038 * MOVEM.L $1042, D0-A7
+  MOVE.L    #$00001042, $403C * (EA Data)
+
 
 * ------ MOVEA TEST ------
 

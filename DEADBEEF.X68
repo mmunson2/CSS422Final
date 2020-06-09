@@ -52,13 +52,6 @@ INITIALIZE
 * ------ Test Initializations ------
 
 
-* ------ MOVEQ TEST ------
-  MOVE.W    #$7200, $4000   * MOVEQ #0,D1
-  MOVE.W    #$7401, $4002   * MOVEQ #1,D2
-  MOVE.W    #$7E0A, $4004   * MOVEQ #10,D7
-  MOVE.W    #$7AFF, $4006   * MOVEQ #$FF,D5
-
-
 *  MOVE.W    #$4E91, $4000   * JSR Opcode
 *  MOVE.W    #$4EB9,$4000      * JSR 1016 (1)
 *  MOVE.L    #$00001016, $4002 * JSR 1016 (2)
@@ -226,6 +219,19 @@ BRANCHBLOCK
 
 BRANCHBLOCK_MOVEQ_END * Go here if it's not MOVEQ
 
+* ------ MOVEM ------
+  CLR.L   D0
+  MOVE.W  D7,D0
+
+  ROR.W   #8,D0 *Get bits 11 - 15
+  ROR.W   #3,D0
+
+  AND.W   #$1F,D0 * Mask 1 1111
+
+  CMP.B   #9,D0
+  BEQ     MOVEM
+
+
 * ---- ADDQ ----
   CLR.L   D0
   MOVE.W  D7,D0
@@ -281,6 +287,299 @@ BRANCHBLOCK_MOVEQ_END * Go here if it's not MOVEQ
 *    \|_______| \|__|      \|_______| \|_______| \|_______| \|_______|
 *
 *-------------------------------------------------------------------------------
+
+*-------------------------------------------------------------------------------
+* MOVEM
+*
+*
+*-------------------------------------------------------------------------------
+MOVEM
+
+* ------ Check for ILLEGAL ------
+* Bits 7-9 must equal 001
+  CLR.L   D0
+  MOVE.W  D7,D0
+
+  ROR.W   #7,D0 * Shift to bit 7
+  AND.W   #7,D0 * Mask 111
+
+  CMP.B   #1,D0
+  BNE     PRINT_ILLEGAL
+
+
+* ------ Put List Mask in MISC_OPCODE ------
+  MOVE.L    DATA1,D0
+  SWAP      D0
+  MOVE.W    D0,MISC_OPCODE
+
+* ------ Shift so DATA1 is standard ------
+* The Effective Address Subroutine expects data in DATA1
+* So we've moved the List Mask to MISC_OPCODE
+* and shifted everything back 1 word so it fits nicely
+
+  MOVE.L    DATA2,D1
+  SWAP      D1
+
+  MOVE.W    D1,D0
+  MOVE.L    D0,DATA1
+
+* ------ Print "MOVEM" ------
+
+  LEA     PRINT_MOVEM,A5
+  MOVE.L  A5, -(SP)       * Put the print subroutine jump onto the stack
+  ADD.W   #4,PRINT_COUNT  * Increment Print Count by 1 long
+
+* ------ Get Size Bit ------
+  CLR.L   D0
+  MOVE.W  D7,D0
+
+  ROR.W   #6,D0 * Bit 6 is size bit
+  AND.W   #1,D0 * Mask 0001
+
+* ------ Size Branching ------
+  CMP.B   #0,D0 * 0 = Word
+  BEQ     MOVEM_SIZE_WORD
+  BNE     MOVEM_SIZE_LONG
+
+* ------ Print ".L" ------
+MOVEM_SIZE_LONG
+
+  LEA     PRINT_LONG_DESIGNATOR,A5 * Load the ".L" print subroutine
+  MOVE.L  A5, -(SP)       * Put the subroutine onto the stack
+  ADD.W   #4,PRINT_COUNT  * Increment Print Count by 1 long
+
+  BRA   MOVEM_SIZE_CONTINUE
+
+* ------ Print ".W" ------
+MOVEM_SIZE_WORD
+
+  LEA     PRINT_WORD_DESIGNATOR,A5 * Load the ".W" print subroutine
+  MOVE.L  A5, -(SP)         * Put the subroutine onto the stack
+  ADD.W   #4,PRINT_COUNT    * Increment Print Count by 1 long
+
+  BRA   MOVEM_SIZE_CONTINUE
+
+MOVEM_SIZE_CONTINUE
+
+* ------ Get the direction bit ------
+  CLR.L   D0
+  MOVE.W  D7,D0
+
+  ROR.W   #8,D0   * Get bit 10
+  ROR.W   #2,D0
+
+  AND.W   #1,D0   * Mask 0000 0001
+
+  CMP.B   #1,D0
+  BEQ     MOVEM_MEM2REG * If direction bit is 1, do memory -> register(s)
+
+  BRA     MOVEM_REG2MEM * else, do register(s) -> memory
+
+
+*-------------------------------------------------------------------------------
+* MOVEM_MEM2REG
+*
+* • Do modified EA_MODE first
+*   • (An), (An)+, (xxx).W, (xxx).L only!
+* • Then push MOVEM register print
+*-------------------------------------------------------------------------------
+MOVEM_MEM2REG
+
+
+* ---- Custom Branching Block ----
+  CLR.L     D0
+  CLR.L     D6
+  MOVE.B    D7,D0 * Copy opcode into local variable
+  MOVE.W    D7,D6
+
+  AND.B     #$38,D0 * Mask D0 with 0111000 to get MODE bits only
+  ASR.B     #3,D0	* Shift the result so D0 ranges between 000 and 111
+  MOVE.B    D0,D1 * Save result for later.
+
+  CMP.B     #2,D0
+  BEQ       MOVEM_MEM2REG_AN_IND
+  CMP.B     #3,D0
+  BEQ       MOVEM_MEM2REG_POST_INC
+  CMP.B     #7,D0
+  BEQ       MOVEM_MEM2REG_ELSE
+
+  BRA       PRINT_ILLEGAL
+
+MOVEM_MEM2REG_ELSE
+
+  CLR.L   D0
+  MOVE.B  D7,D0
+  AND.B   #7,D0
+
+  CMP.B   #0,D0
+  BEQ     MOVEM_MEM2REG_IND_SHORT
+  CMP.B   #1,D0
+  BEQ     MOVEM_MEM2REG_IND_LONG
+
+  BRA     PRINT_ILLEGAL
+
+*________________________________________
+* Jump directly into the middle of
+* the PUSH_EA_MODE subroutine
+*----------------------------------------
+MOVEM_MEM2REG_AN_IND
+
+  JSR     PUSH_EA_MODE_ID_AN_INDIRECT
+  BRA     MOVEM_MEM2REG_EA_FINISH
+*________________________________________
+* Jump directly into the middle of
+* the PUSH_EA_MODE subroutine
+*----------------------------------------
+MOVEM_MEM2REG_POST_INC
+
+  JSR     PUSH_EA_MODE_ID_AN_POST_INC
+  BRA     MOVEM_MEM2REG_EA_FINISH
+
+*________________________________________
+* Jump directly into the middle of
+* the PUSH_EA_MODE subroutine
+*----------------------------------------
+MOVEM_MEM2REG_IND_SHORT
+
+  JSR   PUSH_EA_MODE_ID_IND_SHORT
+  BRA   MOVEM_MEM2REG_EA_FINISH
+
+*________________________________________
+* Jump directly into the middle of
+* the PUSH_EA_MODE subroutine
+*----------------------------------------
+MOVEM_MEM2REG_IND_LONG
+
+  JSR   PUSH_EA_MODE_ID_IND_LONG
+  BRA     MOVEM_MEM2REG_EA_FINISH
+
+*________________________________________
+* Jump directly into the middle of
+* the PUSH_EA_MODE subroutine
+*----------------------------------------
+MOVEM_MEM2REG_EA_FINISH
+
+  LEA     PRINT_COMMA,A5   * Load the print subroutine
+  MOVE.L  A5, -(SP)       * Put the print subroutine jump onto the stack
+  ADD.W   #4,PRINT_COUNT  * Increment Print Count by 1 long
+
+  LEA     PRINT_SPACE,A5   * Load the print subroutine
+  MOVE.L  A5, -(SP)       * Put the print subroutine jump onto the stack
+  ADD.W   #4,PRINT_COUNT  * Increment Print Count by 1 long
+
+  LEA     PRINT_MOVEM_STANDARD,A5   * Load the print subroutine
+  MOVE.L  A5, -(SP)       * Put the print subroutine jump onto the stack
+  ADD.W   #4,PRINT_COUNT  * Increment Print Count by 1 long
+
+
+  ADD.W  #4,LOOP_INC     * Increment the loop counter by 2 bytes
+
+  BRA   PRINT_OPCODE
+
+
+*-------------------------------------------------------------------------------
+* MOVEM_REG2MEM
+*
+* • Push MOVEM register print first
+* • Then do modified EA_MODE
+*     • (An), -(An), (xxx).W, (xxx.L) only!
+*
+*-------------------------------------------------------------------------------
+MOVEM_REG2MEM
+
+
+  * ---- Custom Branching Block ----
+    CLR.L     D0
+    CLR.L     D6
+    MOVE.B    D7,D0 * Copy opcode into local variable
+    MOVE.W    D7,D6
+
+    AND.B     #$38,D0 * Mask D0 with 0111000 to get MODE bits only
+    ASR.B     #3,D0	* Shift the result so D0 ranges between 000 and 111
+
+    CMP.B     #2,D0
+    BEQ       MOVEM_REG2MEM_AN_IND
+    CMP.B     #4,D0
+    BEQ       MOVEM_REG2MEM_PRE_DEC
+    CMP.B     #7,D0
+    BEQ       MOVEM_REG2MEM_ELSE
+
+    BRA       PRINT_ILLEGAL
+
+MOVEM_REG2MEM_ELSE
+
+    CLR.L   D0
+    MOVE.B  D7,D0
+    AND.B   #7,D0
+
+    CMP.B   #0,D0
+    BEQ     MOVEM_REG2MEM_IND_SHORT
+    CMP.B   #1,D0
+    BEQ     MOVEM_REG2MEM_IND_LONG
+
+    BRA     PRINT_ILLEGAL
+
+*________________________________________
+* Jump directly into the middle of
+* the PUSH_EA_MODE subroutine
+*----------------------------------------
+MOVEM_REG2MEM_AN_IND
+
+    LEA     PRINT_MOVEM_STANDARD,A5   * Load the print subroutine
+    MOVE.L  A5, -(SP)       * Put the print subroutine jump onto the stack
+    ADD.W   #4,PRINT_COUNT  * Increment Print Count by 1 long
+
+    JSR     PUSH_EA_MODE_ID_AN_INDIRECT
+    BRA     MOVEM_REG2MEM_EA_FINISH
+*________________________________________
+* Jump directly into the middle of
+* the PUSH_EA_MODE subroutine
+*----------------------------------------
+MOVEM_REG2MEM_PRE_DEC
+
+    LEA     PRINT_MOVEM_REVERSE,A5   * Load the print subroutine
+    MOVE.L  A5, -(SP)       * Put the print subroutine jump onto the stack
+    ADD.W   #4,PRINT_COUNT  * Increment Print Count by 1 long
+
+    JSR     PUSH_EA_MODE_ID_AN_PRE_DEC
+    BRA     MOVEM_REG2MEM_EA_FINISH
+
+*________________________________________
+* Jump directly into the middle of
+* the PUSH_EA_MODE subroutine
+*----------------------------------------
+MOVEM_REG2MEM_IND_SHORT
+
+    LEA     PRINT_MOVEM_STANDARD,A5   * Load the print subroutine
+    MOVE.L  A5, -(SP)       * Put the print subroutine jump onto the stack
+    ADD.W   #4,PRINT_COUNT  * Increment Print Count by 1 long
+
+
+    JSR   PUSH_EA_MODE_ID_IND_SHORT
+    BRA   MOVEM_REG2MEM_EA_FINISH
+
+*________________________________________
+* Jump directly into the middle of
+* the PUSH_EA_MODE subroutine
+*----------------------------------------
+MOVEM_REG2MEM_IND_LONG
+
+    LEA     PRINT_MOVEM_STANDARD,A5   * Load the print subroutine
+    MOVE.L  A5, -(SP)       * Put the print subroutine jump onto the stack
+    ADD.W   #4,PRINT_COUNT  * Increment Print Count by 1 long
+
+    JSR   PUSH_EA_MODE_ID_IND_LONG
+    BRA     MOVEM_REG2MEM_EA_FINISH
+
+*________________________________________
+* Jump directly into the middle of
+* the PUSH_EA_MODE subroutine
+*----------------------------------------
+MOVEM_REG2MEM_EA_FINISH
+
+  ADD.W  #4,LOOP_INC     * Increment the loop counter by 2 bytes
+
+  BRA   PRINT_OPCODE
 
 
 *-------------------------------------------------------------------------------
@@ -1509,6 +1808,7 @@ PUSH_BWL_FINISH
 *       \ \__\     \ \__\\ _\ \ \__\\ \__\\ \__\    \ \__\
 *        \|__|      \|__|\|__| \|__| \|__| \|__|     \|__|
 *
+* May god have mercy on your soul
 *-------------------------------------------------------------------------------
 *-------------------------------------------------------------------------------
 *
@@ -2526,6 +2826,22 @@ PRINT_FOURSPACE
     TRAP            #15
     BRA             PRINT_OPCODE_LOOP_RETURN
 
+*-------------------------------------------------------------------------------
+*
+*		PRINT SPACE
+*________________________________________
+* Register Use Summary:
+*
+* D0: LOCAL VARIABLE  - Trap task designator
+*
+* A1: LOCAL VARIABLE  - String address
+*-------------------------------------------------------------------------------
+PRINT_SPACE
+    LEA             STRING_SPACE,A1 * Load four spaces into A1
+    MOVE.B          #14,D0              * Set trap task to String
+    TRAP            #15
+    BRA             PRINT_OPCODE_LOOP_RETURN
+
 
 *-------------------------------------------------------------------------------
 *
@@ -2615,6 +2931,416 @@ PRINT_IMMEDIATE_NEWLINE
 	TRAP	   #15
 
   RTS
+
+
+*--------------------------------------------------------------------------------
+* PRINT_MOVEM_STANDARD
+*
+* Oh no
+*
+* Registers Used:
+*	D0: Trap task designator
+*	D1: Memory address to display
+*
+* A1: Data memory location
+*
+PRINT_MOVEM_STANDARD
+
+  CLR.L     D2 * D2 is where full data is stored
+  MOVE.W    MISC_OPCODE,D2
+
+  CLR.L     D1 * D1 is where we'll do the masking
+  MOVE.W    D2,D1
+
+PRINT_MOVEM_STANDARD_A7
+
+  AND.W     #$8000,D1
+  CMP.W     #$8000,D1
+  BNE       PRINT_MOVEM_STANDARD_A6
+
+  LEA	     STRING_A7,A1
+	MOVEQ	   #14,D0
+	TRAP	   #15
+
+PRINT_MOVEM_STANDARD_A6
+
+  MOVE.W    D2,D1
+  AND.W     #$4000,D1
+  CMP.W     #$4000,D1
+  BNE       PRINT_MOVEM_STANDARD_A5
+
+  LEA	     STRING_A6,A1
+	MOVEQ	   #14,D0
+	TRAP	   #15
+
+PRINT_MOVEM_STANDARD_A5
+
+  MOVE.W    D2,D1
+  AND.W     #$2000,D1
+  CMP.W     #$2000,D1
+  BNE       PRINT_MOVEM_STANDARD_A4
+
+  LEA	     STRING_A5,A1
+	MOVEQ	   #14,D0
+	TRAP	   #15
+
+PRINT_MOVEM_STANDARD_A4
+
+  MOVE.W    D2,D1
+  AND.W     #$1000,D1
+  CMP.W     #$1000,D1
+  BNE       PRINT_MOVEM_STANDARD_A3
+
+  LEA	     STRING_A4,A1
+	MOVEQ	   #14,D0
+	TRAP	   #15
+
+PRINT_MOVEM_STANDARD_A3
+
+  MOVE.W    D2,D1
+  AND.W     #$0800,D1
+  CMP.W     #$0800,D1
+  BNE       PRINT_MOVEM_STANDARD_A2
+
+  LEA	     STRING_A3,A1
+	MOVEQ	   #14,D0
+	TRAP	   #15
+
+PRINT_MOVEM_STANDARD_A2
+
+  MOVE.W    D2,D1
+  AND.W     #$0400,D1
+  CMP.W     #$0400,D1
+  BNE       PRINT_MOVEM_STANDARD_A1
+
+  LEA	     STRING_A2,A1
+	MOVEQ	   #14,D0
+	TRAP	   #15
+
+PRINT_MOVEM_STANDARD_A1
+
+  MOVE.W    D2,D1
+  AND.W     #$0200,D1
+  CMP.W     #$0200,D1
+  BNE       PRINT_MOVEM_STANDARD_A0
+
+  LEA	     STRING_A1,A1
+	MOVEQ	   #14,D0
+	TRAP	   #15
+
+PRINT_MOVEM_STANDARD_A0
+
+  MOVE.W    D2,D1
+  AND.W     #$0100,D1
+  CMP.W     #$0100,D1
+  BNE       PRINT_MOVEM_STANDARD_D7
+
+  LEA	     STRING_A0,A1
+	MOVEQ	   #14,D0
+	TRAP	   #15
+
+PRINT_MOVEM_STANDARD_D7
+
+  MOVE.W    D2,D1
+  AND.W     #$0080,D1
+  CMP.W     #$0080,D1
+  BNE       PRINT_MOVEM_STANDARD_D6
+
+  LEA	     STRING_D7,A1
+	MOVEQ	   #14,D0
+	TRAP	   #15
+
+PRINT_MOVEM_STANDARD_D6
+
+  MOVE.W    D2,D1
+  AND.W     #$0040,D1
+  CMP.W     #$0040,D1
+  BNE       PRINT_MOVEM_STANDARD_D5
+
+  LEA	     STRING_D6,A1
+	MOVEQ	   #14,D0
+	TRAP	   #15
+
+PRINT_MOVEM_STANDARD_D5
+
+  MOVE.W    D2,D1
+  AND.W     #$0020,D1
+  CMP.W     #$0020,D1
+  BNE       PRINT_MOVEM_STANDARD_D4
+
+  LEA	     STRING_D5,A1
+	MOVEQ	   #14,D0
+	TRAP	   #15
+
+PRINT_MOVEM_STANDARD_D4
+
+  MOVE.W    D2,D1
+  AND.W     #$0010,D1
+  CMP.W     #$0010,D1
+  BNE       PRINT_MOVEM_STANDARD_D3
+
+  LEA	     STRING_D4,A1
+	MOVEQ	   #14,D0
+	TRAP	   #15
+
+PRINT_MOVEM_STANDARD_D3
+
+  MOVE.W    D2,D1
+  AND.W     #$0008,D1
+  CMP.W     #$0008,D1
+  BNE       PRINT_MOVEM_STANDARD_D2
+
+  LEA	     STRING_D3,A1
+	MOVEQ	   #14,D0
+	TRAP	   #15
+
+PRINT_MOVEM_STANDARD_D2
+
+  MOVE.W    D2,D1
+  AND.W     #$0004,D1
+  CMP.W     #$0004,D1
+  BNE       PRINT_MOVEM_STANDARD_D1
+
+  LEA	     STRING_D2,A1
+	MOVEQ	   #14,D0
+	TRAP	   #15
+
+PRINT_MOVEM_STANDARD_D1
+
+  MOVE.W    D2,D1
+  AND.W     #$0002,D1
+  CMP.W     #$0002,D1
+  BNE       PRINT_MOVEM_STANDARD_D0
+
+  LEA	     STRING_D1,A1
+	MOVEQ	   #14,D0
+	TRAP	   #15
+
+PRINT_MOVEM_STANDARD_D0
+
+  MOVE.W    D2,D1
+  AND.W     #$0001,D1
+  CMP.W     #$0001,D1
+  BNE       PRINT_MOVEM_STANDARD_END
+
+  LEA	     STRING_D0,A1
+	MOVEQ	   #14,D0
+	TRAP	   #15
+
+PRINT_MOVEM_STANDARD_END
+
+  LEA	     STRING_SPACE,A1
+  MOVEQ	   #14,D0
+  TRAP	   #15
+
+
+  BRA      PRINT_OPCODE_LOOP_RETURN
+
+
+*--------------------------------------------------------------------------------
+* PRINT_MOVEM_REVERSE
+*
+* it hurts
+*
+* Registers Used:
+*	D0: Trap task designator
+*	D1: Memory address to display
+*
+* A1: Data memory location
+*
+PRINT_MOVEM_REVERSE
+
+
+  CLR.L     D2 * D2 is where full data is stored
+  MOVE.W    MISC_OPCODE,D2
+
+  CLR.L     D1 * D1 is where we'll do the masking
+  MOVE.W    D2,D1
+
+PRINT_MOVEM_REVERSE_D0
+
+  AND.W     #$8000,D1
+  CMP.W     #$8000,D1
+  BNE       PRINT_MOVEM_REVERSE_D1
+
+  LEA	     STRING_D0,A1
+	MOVEQ	   #14,D0
+	TRAP	   #15
+
+PRINT_MOVEM_REVERSE_D1
+
+  MOVE.W    D2,D1
+  AND.W     #$4000,D1
+  CMP.W     #$4000,D1
+  BNE       PRINT_MOVEM_REVERSE_D2
+
+  LEA	     STRING_D1,A1
+	MOVEQ	   #14,D0
+	TRAP	   #15
+
+PRINT_MOVEM_REVERSE_D2
+
+  MOVE.W    D2,D1
+  AND.W     #$2000,D1
+  CMP.W     #$2000,D1
+  BNE       PRINT_MOVEM_REVERSE_D3
+
+  LEA	     STRING_D2,A1
+	MOVEQ	   #14,D0
+	TRAP	   #15
+
+PRINT_MOVEM_REVERSE_D3
+
+  MOVE.W    D2,D1
+  AND.W     #$1000,D1
+  CMP.W     #$1000,D1
+  BNE       PRINT_MOVEM_REVERSE_D4
+
+  LEA	     STRING_D3,A1
+	MOVEQ	   #14,D0
+	TRAP	   #15
+
+PRINT_MOVEM_REVERSE_D4
+
+  MOVE.W    D2,D1
+  AND.W     #$0800,D1
+  CMP.W     #$0800,D1
+  BNE       PRINT_MOVEM_REVERSE_D5
+
+  LEA	     STRING_D4,A1
+	MOVEQ	   #14,D0
+	TRAP	   #15
+
+PRINT_MOVEM_REVERSE_D5
+
+  MOVE.W    D2,D1
+  AND.W     #$0400,D1
+  CMP.W     #$0400,D1
+  BNE       PRINT_MOVEM_REVERSE_D6
+
+  LEA	     STRING_D5,A1
+	MOVEQ	   #14,D0
+	TRAP	   #15
+
+PRINT_MOVEM_REVERSE_D6
+
+  MOVE.W    D2,D1
+  AND.W     #$0200,D1
+  CMP.W     #$0200,D1
+  BNE       PRINT_MOVEM_REVERSE_D7
+
+  LEA	     STRING_D6,A1
+	MOVEQ	   #14,D0
+	TRAP	   #15
+
+PRINT_MOVEM_REVERSE_D7
+
+  MOVE.W    D2,D1
+  AND.W     #$0100,D1
+  CMP.W     #$0100,D1
+  BNE       PRINT_MOVEM_REVERSE_A0
+
+  LEA	     STRING_D7,A1
+	MOVEQ	   #14,D0
+	TRAP	   #15
+
+PRINT_MOVEM_REVERSE_A0
+
+  MOVE.W    D2,D1
+  AND.W     #$0080,D1
+  CMP.W     #$0080,D1
+  BNE       PRINT_MOVEM_REVERSE_A1
+
+  LEA	     STRING_A0,A1
+	MOVEQ	   #14,D0
+	TRAP	   #15
+
+PRINT_MOVEM_REVERSE_A1
+
+  MOVE.W    D2,D1
+  AND.W     #$0040,D1
+  CMP.W     #$0040,D1
+  BNE       PRINT_MOVEM_REVERSE_A2
+
+  LEA	     STRING_A1,A1
+	MOVEQ	   #14,D0
+	TRAP	   #15
+
+PRINT_MOVEM_REVERSE_A2
+
+  MOVE.W    D2,D1
+  AND.W     #$0020,D1
+  CMP.W     #$0020,D1
+  BNE       PRINT_MOVEM_REVERSE_A3
+
+  LEA	     STRING_A2,A1
+	MOVEQ	   #14,D0
+	TRAP	   #15
+
+PRINT_MOVEM_REVERSE_A3
+
+  MOVE.W    D2,D1
+  AND.W     #$0010,D1
+  CMP.W     #$0010,D1
+  BNE       PRINT_MOVEM_REVERSE_A4
+
+  LEA	     STRING_A3,A1
+	MOVEQ	   #14,D0
+	TRAP	   #15
+
+PRINT_MOVEM_REVERSE_A4
+
+  MOVE.W    D2,D1
+  AND.W     #$0008,D1
+  CMP.W     #$0008,D1
+  BNE       PRINT_MOVEM_REVERSE_A5
+
+  LEA	     STRING_A4,A1
+	MOVEQ	   #14,D0
+	TRAP	   #15
+
+PRINT_MOVEM_REVERSE_A5
+
+  MOVE.W    D2,D1
+  AND.W     #$0004,D1
+  CMP.W     #$0004,D1
+  BNE       PRINT_MOVEM_REVERSE_A6
+
+  LEA	     STRING_A5,A1
+	MOVEQ	   #14,D0
+	TRAP	   #15
+
+PRINT_MOVEM_REVERSE_A6
+
+  MOVE.W    D2,D1
+  AND.W     #$0002,D1
+  CMP.W     #$0002,D1
+  BNE       PRINT_MOVEM_REVERSE_A7
+
+  LEA	     STRING_A6,A1
+	MOVEQ	   #14,D0
+	TRAP	   #15
+
+PRINT_MOVEM_REVERSE_A7
+
+  MOVE.W    D2,D1
+  AND.W     #$0001,D1
+  CMP.W     #$0001,D1
+  BNE       PRINT_MOVEM_REVERSE_END
+
+  LEA	     STRING_A7,A1
+	MOVEQ	   #14,D0
+	TRAP	   #15
+
+PRINT_MOVEM_REVERSE_END
+
+  LEA	     STRING_SPACE,A1
+	MOVEQ	   #14,D0
+	TRAP	   #15
+
+
+  BRA   PRINT_OPCODE_LOOP_RETURN
+
 
 *-----------------------------------------------------------------
 * GET_INPUT
@@ -2836,6 +3562,7 @@ STRING_MINUS                DC.B    '-',0
 STRING_POUND                DC.B    '#',0
 STRING_DOLLAR               DC.B    '$',0
 
+STRING_SPACE                DC.B    ' ',0
 STRING_FOURSPACE            DC.B    '    ',0
 STRING_NEWLINE              DC.B    '',CR,LF,0
 
@@ -2859,6 +3586,24 @@ STRING_MOVE                 DC.B    'MOVE',0
 STRING_MOVEA                DC.B    'MOVEA',0
 STRING_MOVEQ                DC.B    'MOVEQ    ',0
 STRING_MOVEM                DC.B    'MOVEM',0
+
+STRING_A0                   DC.B    'A0,',0
+STRING_A1                   DC.B    'A1,',0
+STRING_A2                   DC.B    'A2,',0
+STRING_A3                   DC.B    'A3,',0
+STRING_A4                   DC.B    'A4,',0
+STRING_A5                   DC.B    'A5,',0
+STRING_A6                   DC.B    'A6,',0
+STRING_A7                   DC.B    'A7,',0
+
+STRING_D0                   DC.B    'D0,',0
+STRING_D1                   DC.B    'D1,',0
+STRING_D2                   DC.B    'D2,',0
+STRING_D3                   DC.B    'D3,',0
+STRING_D4                   DC.B    'D4,',0
+STRING_D5                   DC.B    'D5,',0
+STRING_D6                   DC.B    'D6,',0
+STRING_D7                   DC.B    'D7,',0
 
 MISC_NUMBER  DS.B    1    * MISC_NUMBER to be printed
 MISC_OPCODE  DS.W    1
