@@ -51,36 +51,35 @@ INITIALIZE
 
 * ------ Test Initializations ------
 
+    MOVE.W      #$4E71, $4000   * NOP Opcode
+    MOVE.W      #$4E75, $4002   * RTS Opcode
+    MOVE.L      #$60000002, $4004   * BRA Opcode
+    MOVE.L      #$6E000018, $4008   * BRA Opcode
+    MOVE.W      #$6FE6, $400C
+    MOVE.W      #$67E2, $400E
+    
+    MOVE.W      #$4EB9,$4010      * JSR 1016 (1)
+    MOVE.L      #$00001016, $4012 * JSR 1016 (2)
+    MOVE.W      #$D151, $4016 * ADD.W   D0,(A1)
+    MOVE.W      #$9151, $4018 * SUB.W   D0,(A1)
+    MOVE.W      #$C151, $401A * AND.W   D0,(A1)
+    MOVE.W      #$8151, $401C * OR.W   D0,(A1)
+    MOVE.W      #$5200, $401E * ADDQ.B  #1,D0
+    MOVE.W      #$D2C0, $4020 * ADDA.W    D0,A1
+    MOVE.W      #$1200, $4022   * MOVE.B    D0,D1
+    MOVE.L      #$48911400, $4024 * MOVEM.W   A2/A4, (A1)
+    MOVE.W      #$2449, $4028   * MOVEA.L   A1,A2
+    MOVE.W      #$7200, $402A   * MOVEQ #0,D1
+    
+    MOVE.W      #$E940, $402C	* ASL	#8,D0
+    MOVE.W      #$E061, $402E	* ASR	D0,D1
+    MOVE.W      #$EB49, $4030	* LSL	#5,D1
+    MOVE.W      #$E26A, $4032	* LSR	D1,S2
+    MOVE.W      #$E31B, $4034 	* ROL.B	#1,D3
+    MOVE.W      #$E21B, $4036	* ROR.B	#1,D3
 
-* ------ OR TEST ------
-  MOVE.W  #$8151, $4000 * OR.W   D0,(A1)
-  MOVE.W  #$8191, $4002 * OR.L   D0,(A1)
-  MOVE.W  #$8042, $4004 * OR.W   D2,D0
-  MOVE.W  #$8082, $4006 * OR.L   D2,D0
-
-  MOVE.W  #$8F57, $4008 * OR.W   D7,(A7)
-  MOVE.W  #$8F97, $400A * OR.L   D7,(A7)
-  MOVE.W  #$8E46, $400C * OR.W   D6,D7
-  MOVE.W  #$8E86, $400E * OR.L   D6,D7
-
-
-*  MOVE.W    #$4E91, $4000   * JSR Opcode
-*  MOVE.W    #$4EB9,$4000      * JSR 1016 (1)
-*  MOVE.L    #$00001016, $4002 * JSR 1016 (2)
-*  (^ Add 8 to memory address if you want something after this ^)
-
-*  MOVE.W    #$4E71, $4002   * NOP Opcode
-*  MOVE.W    #$4E75, $4004   * RTS Opcode
-*  MOVE.W    #$5241, $4000   * ADDQ Opcode
-*  MOVE.W    #$D240, $4000   * ADD Opcode
-*  MOVE.W    #$D5C9, $4000   * ADDA Opcode (ADDA.L A1,A2)
-*   MOVE.L    #$60000002, $4000   * BRA Opcode
-*   MOVE.L    #$6E000018, $4004   * BRA Opcode
-*   MOVE.W    #$6FE6, $4008
-*   MOVE.W    #$67E2, $400A
-
-  MOVE.L    #$4000, START_ADDR
-  MOVE.L    #$5000, END_ADDR
+    MOVE.L      #$4000, START_ADDR
+    MOVE.L      #$5000, END_ADDR
 
 
 * ------ Standard Initializations ------
@@ -234,13 +233,17 @@ BRANCHBLOCK_MOVEQ_END * Go here if it's not MOVEQ
 * ------ MOVEM ------
   CLR.L   D0
   MOVE.W  D7,D0
+  
+    * Fixed MOVEM bit check
+    AND.W   #$FB80,D0
+    CMP.W   #$4880,D0
 
-  ROR.W   #8,D0 *Get bits 11 - 15
-  ROR.W   #3,D0
+  *ROR.W   #8,D0 *Get bits 11 - 15
+  *ROR.W   #3,D0
 
-  AND.W   #$1F,D0 * Mask 1 1111
+  *AND.W   #$1F,D0 * Mask 1 1111
 
-  CMP.B   #9,D0
+  *CMP.B   #9,D0
   BEQ     MOVEM
 
 
@@ -4000,6 +4003,7 @@ MISC_REGISTER DS.B   1
 
 
     END    START
+
 
 
 
