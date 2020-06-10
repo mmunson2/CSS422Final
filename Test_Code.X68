@@ -60,6 +60,24 @@ JSR Test
   MOVE.W  #$8E46, $400C * OR.W   D6,D7
   MOVE.W  #$8E86, $400E * OR.L   D6,D7
 
+* ------ NOT TEST ------
+
+  MOVE.W  #$4600, $4000 * NOT.B   D0
+  MOVE.W  #$4640, $4002 * NOT.W   D0
+  MOVE.W  #$4680, $4004 * NOT.L   D0
+
+  MOVE.W  #$4651, $4006 * NOT.W   (A1)
+  MOVE.W  #$4692, $4008 * NOT.L   (A2)
+
+* ------ LEA TEST ------
+
+  MOVE.W  #$41D0, $4000 * LEA (A0),A0
+  MOVE.W  #$4FD7, $4002 * LEA (A7),A7
+
+  MOVE.W  #$45F9, $4004 * LEA $0000100A,A2
+  MOVE.L  #$0000100A, $4006 * (Data portion)
+
+
 
 * ------ ADDQ TEST ------
   MOVE.W  #$5200, $4000 * ADDQ.B  #1,D0

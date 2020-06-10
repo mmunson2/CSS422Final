@@ -51,35 +51,33 @@ INITIALIZE
 
 * ------ Test Initializations ------
 
-    MOVE.W      #$4E71, $4000   * NOP Opcode
-    MOVE.W      #$4E75, $4002   * RTS Opcode
-    MOVE.L      #$60000002, $4004   * BRA Opcode
-    MOVE.L      #$6E000018, $4008   * BRA Opcode
-    MOVE.W      #$6FE6, $400C
-    MOVE.W      #$67E2, $400E
-    
-    MOVE.W      #$4EB9,$4010      * JSR 1016 (1)
-    MOVE.L      #$00001016, $4012 * JSR 1016 (2)
-    MOVE.W      #$D151, $4016 * ADD.W   D0,(A1)
-    MOVE.W      #$9151, $4018 * SUB.W   D0,(A1)
-    MOVE.W      #$C151, $401A * AND.W   D0,(A1)
-    MOVE.W      #$8151, $401C * OR.W   D0,(A1)
-    MOVE.W      #$5200, $401E * ADDQ.B  #1,D0
-    MOVE.W      #$D2C0, $4020 * ADDA.W    D0,A1
-    MOVE.W      #$1200, $4022   * MOVE.B    D0,D1
-    MOVE.L      #$48911400, $4024 * MOVEM.W   A2/A4, (A1)
-    MOVE.W      #$2449, $4028   * MOVEA.L   A1,A2
-    MOVE.W      #$7200, $402A   * MOVEQ #0,D1
-    
-    MOVE.W      #$E940, $402C	* ASL	#8,D0
-    MOVE.W      #$E061, $402E	* ASR	D0,D1
-    MOVE.W      #$EB49, $4030	* LSL	#5,D1
-    MOVE.W      #$E26A, $4032	* LSR	D1,S2
-    MOVE.W      #$E31B, $4034 	* ROL.B	#1,D3
-    MOVE.W      #$E21B, $4036	* ROR.B	#1,D3
 
-    MOVE.L      #$4000, START_ADDR
-    MOVE.L      #$5000, END_ADDR
+* ------ LEA TEST ------
+
+  MOVE.W  #$41D0, $4000 * LEA (A0),A0
+  MOVE.W  #$4FD7, $4002 * LEA (A7),A7
+
+  MOVE.W  #$45F9, $4004 * LEA $0000100A,A2
+  MOVE.L  #$0000100A, $4006 * (Data portion)
+
+
+*  MOVE.W    #$4E91, $4000   * JSR Opcode
+*  MOVE.W    #$4EB9,$4000      * JSR 1016 (1)
+*  MOVE.L    #$00001016, $4002 * JSR 1016 (2)
+*  (^ Add 8 to memory address if you want something after this ^)
+
+*  MOVE.W    #$4E71, $4002   * NOP Opcode
+*  MOVE.W    #$4E75, $4004   * RTS Opcode
+*  MOVE.W    #$5241, $4000   * ADDQ Opcode
+*  MOVE.W    #$D240, $4000   * ADD Opcode
+*  MOVE.W    #$D5C9, $4000   * ADDA Opcode (ADDA.L A1,A2)
+*   MOVE.L    #$60000002, $4000   * BRA Opcode
+*   MOVE.L    #$6E000018, $4004   * BRA Opcode
+*   MOVE.W    #$6FE6, $4008
+*   MOVE.W    #$67E2, $400A
+
+  MOVE.L    #$4000, START_ADDR
+  MOVE.L    #$5000, END_ADDR
 
 
 * ------ Standard Initializations ------
@@ -233,7 +231,7 @@ BRANCHBLOCK_MOVEQ_END * Go here if it's not MOVEQ
 * ------ MOVEM ------
   CLR.L   D0
   MOVE.W  D7,D0
-  
+
     * Fixed MOVEM bit check
     AND.W   #$FB80,D0
     CMP.W   #$4880,D0
@@ -245,6 +243,20 @@ BRANCHBLOCK_MOVEQ_END * Go here if it's not MOVEQ
 
   *CMP.B   #9,D0
   BEQ     MOVEM
+
+* ---- NOT ----
+  CLR.L   D0
+  MOVE.W  D7,D0
+  AND.W   #$FF00,D0
+  CMP.W   #$4600,D0
+  BEQ     NOT
+
+* ---- LEA ----
+  CLR.L   D0
+  MOVE.W  D7,D0
+  AND.W   #$F1C0,D0
+  CMP.W   #$41C0,D0
+  BEQ     LEA
 
 
 * ---- ADDQ ----
@@ -323,6 +335,107 @@ BRANCHBLOCK_MOVEQ_END * Go here if it's not MOVEQ
 *    \|_______| \|__|      \|_______| \|_______| \|_______| \|_______|
 *
 *-------------------------------------------------------------------------------
+
+*-------------------------------------------------------------------------------
+* LEA
+*
+*
+*-------------------------------------------------------------------------------
+LEA
+
+  * ------ Print "LEA" ------
+  LEA     PRINT_LEA,A5    * Load the print subroutine into intermediate address
+  MOVE.L  A5, -(SP)       * Put the print subroutine jump onto the stack
+  ADD.W   #4,PRINT_COUNT
+
+  * ------ Print some spaces ------
+  LEA     PRINT_FOURSPACE,A5    * Load the print subroutine into intermediate address
+  MOVE.L  A5, -(SP)       * Put the print subroutine jump onto the stack
+  ADD.W   #4,PRINT_COUNT
+
+  * ------ Dn,An,(An)+,-(An) are not allowed ------
+  CLR.L   D0
+  MOVE.B  D7,D0	* Put opcode in D0
+  AND.B   #$38,D0	* Mask D0 with 0111000 to get MODE bits only
+  ASR.B   #3,D0	* Shift the result so D0 ranges between 000 and 111
+
+  CMP.B   #0,D0			*000 -> Register
+  BEQ     PRINT_ILLEGAL
+  CMP.B   #1,D0			*001 -> Address Register
+  BEQ     PRINT_ILLEGAL
+  CMP.B   #3,D0			*011 -> Address Register  (Indirect)+
+  BEQ     PRINT_ILLEGAL
+  CMP.B   #4,D0			*100 -> Address Register -(Indirect)
+  BEQ     PRINT_ILLEGAL
+
+  * ------ Print the effective address ------
+  MOVE.L  D7,D6 * Put full opcode into D6 as parameter
+  JSR     PUSH_EA_MODE_ID
+
+* ------ Print a comma ------
+  LEA     PRINT_COMMA,A5   * Load the print subroutine
+  MOVE.L  A5, -(SP)       * Put the print subroutine jump onto the stack
+  ADD.W   #4,PRINT_COUNT  * Increment Print Count by 1 long
+
+
+* ------ Get Destination Address ------
+  MOVE.L    D7,D0
+  ROR.W     #$8,D0 * Get the three register bits
+  ROR.W     #$1,D0
+  AND.W     #$7,D0 * Mask 111
+
+  MOVE.B    D0,MISC_NUMBER
+
+* ------ Print Destination Address ------
+  LEA       PRINT_MISC_NUMBER_AS_ADDRESS,A5
+  MOVE.L  A5, -(SP)       * Put the print subroutine jump onto the stack
+  ADD.W           #4,PRINT_COUNT
+
+
+  ADD.W  #2,LOOP_INC     * Increment the loop counter by 4 bytes
+
+  BRA   PRINT_OPCODE
+
+
+*-------------------------------------------------------------------------------
+* NOT
+*
+*
+*-------------------------------------------------------------------------------
+NOT
+
+* ------ Print "NOT" ------
+  LEA     PRINT_NOT,A5    * Load the print subroutine into intermediate address
+  MOVE.L  A5, -(SP)       * Put the print subroutine jump onto the stack
+  ADD.W   #4,PRINT_COUNT
+
+  * ------ Print size ------
+    CLR.L   D0
+    MOVE.L  D7,D0
+
+    ROR.W   #06,D0     * Get bits 7,6 on end
+    AND.B   #03,D0     * Isolate bits 7,6
+
+    MOVE.B   D0,D4      * Move bits 7,6 to D4 for BWL
+    JSR      PUSH_BWL
+
+
+  * ------ An is not allowed ------
+  CLR.L   D0
+  MOVE.B  D7,D0	* Put opcode in D0
+  AND.B   #$38,D0	* Mask D0 with 0111000 to get MODE bits only
+  ASR.B   #3,D0	* Shift the result so D0 ranges between 000 and 111
+
+  CMP.B   #1,D0			*001 -> Address Register
+  BEQ     PRINT_ILLEGAL
+
+  * ------ Print the effective address ------
+  MOVE.L  D7,D6 * Put full opcode into D6 as parameter
+  JSR     PUSH_EA_MODE_ID
+
+  ADD.W  #2,LOOP_INC     * Increment the loop counter by 4 bytes
+
+  BRA   PRINT_OPCODE
 
 
 *-------------------------------------------------------------------------------
@@ -3197,6 +3310,37 @@ PRINT_JSR
     TRAP            #15
     BRA             PRINT_OPCODE_LOOP_RETURN
 
+*-------------------------------------------------------------------------------
+*
+*		PRINT NOT
+*________________________________________
+* Register Use Summary:
+*
+* D0: LOCAL VARIABLE  - Trap task designator
+*
+* A1: LOCAL VARIABLE  - String address
+*-------------------------------------------------------------------------------
+PRINT_NOT
+    LEA             STRING_NOT,A1	* Load "NOT" into A1
+    MOVE.B          #14,D0		* Set trap task to String
+    TRAP            #15
+    BRA             PRINT_OPCODE_LOOP_RETURN
+
+*-------------------------------------------------------------------------------
+*
+*		PRINT LEA
+*________________________________________
+* Register Use Summary:
+*
+* D0: LOCAL VARIABLE  - Trap task designator
+*
+* A1: LOCAL VARIABLE  - String address
+*-------------------------------------------------------------------------------
+PRINT_LEA
+    LEA             STRING_LEA,A1	* Load "LEA" into A1
+    MOVE.B          #14,D0		* Set trap task to String
+    TRAP            #15
+    BRA             PRINT_OPCODE_LOOP_RETURN
 
 *-------------------------------------------------------------------------------
 *
@@ -3977,6 +4121,8 @@ STRING_MOVEM                DC.B    'MOVEM',0
 STRING_SUB                  DC.B    'SUB',0
 STRING_AND                  DC.B    'AND',0
 STRING_OR                   DC.B    'OR',0
+STRING_NOT                  DC.B    'NOT',0
+STRING_LEA                  DC.B    'LEA',0
 
 STRING_A0                   DC.B    'A0,',0
 STRING_A1                   DC.B    'A1,',0
