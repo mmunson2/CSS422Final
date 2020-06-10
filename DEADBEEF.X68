@@ -57,8 +57,11 @@ INITIALIZE
   MOVE.W  #$41D0, $4000 * LEA (A0),A0
   MOVE.W  #$4FD7, $4002 * LEA (A7),A7
 
-  MOVE.W  #$45F9, $4004 * LEA $0000100A,A2
-  MOVE.L  #$0000100A, $4006 * (Data portion)
+  MOVE.W  #$AEAD, $4004 * DATA
+  MOVE.W  #$AEEF, $4006 * DATA
+
+  MOVE.W  #$45F9, $4008 * LEA $0000100A,A2
+  MOVE.L  #$0000100A, $400A * (Data portion)
 
 
 *  MOVE.W    #$4E91, $4000   * JSR Opcode
@@ -320,9 +323,9 @@ BRANCHBLOCK_MOVEQ_END * Go here if it's not MOVEQ
   BEQ     JSR
 
 
-* ---- UH OH ----
+* ---- Data is not recognized, print as such ----
 
-  BRA     PRINT_ILLEGAL
+  BRA     PRINT_NON_OPCODE_DATA
 
 
 *-------------------------------------------------------------------------------
@@ -3411,10 +3414,43 @@ PRINT_ILLEGAL       * INCOMPLETE *
 
     MOVE.L          D7,(SP)
 
-    MOVE.W  #2,LOOP_INC     * Increment the loop counter by 4 bytes
+    MOVE.W  #2,LOOP_INC     * Increment the loop counter by 1 word
 
 
     RTS
+
+*-------------------------------------------------------------------------------
+*
+*		PRINT NON_OPCODE_DATA
+*
+* Incomplete implementation - final version will depend on opcode logic.
+* Currently clears stack entirely, future implementation may need to keep
+* some RTS addresses
+*
+* D5: RTS address
+*-------------------------------------------------------------------------------
+PRINT_NON_OPCODE_DATA
+    MOVE.L          (SP),D5
+
+* ------ Print "DATA: " ------
+    MOVE.L          #0,SP
+    LEA             STRING_DATA,A1
+    MOVE.B          #14,D0
+    TRAP            #15
+
+* ------ Print D7 contents ------
+    MOVE.L          D7,D1
+    MOVEQ           #15,D0
+    MOVEQ           #16,D2
+    TRAP            #15
+
+    JSR             PRINT_IMMEDIATE_NEWLINE
+
+    MOVE.W  #2,LOOP_INC     * Increment the loop counter by 1 word
+    MOVE.L          D5,(SP)
+
+    RTS
+
 
 *--------------------------------------------------------------------------------
 * PRINTADDR SUBROUTINE
@@ -4080,6 +4116,7 @@ STRING_INVALID_INPUT    DC.B    'INVALID INPUT, must be a valid EASy68k hexideci
 STRING_OUT_OF_ORDER     DC.B    'Start address must be less than end address',0
 
 
+STRING_DATA                 DC.B    'DATA: ',0
 STRING_ILLEGAL              DC.B    'ILLEGAL',0
 STRING_BYTE_DESIGNATOR      DC.B    '.B ',0
 STRING_WORD_DESIGNATOR      DC.B    '.W ',0
