@@ -52,6 +52,18 @@ INITIALIZE
 * ------ Test Initializations ------
 
 
+* ------ OR TEST ------
+  MOVE.W  #$8151, $4000 * OR.W   D0,(A1)
+  MOVE.W  #$8191, $4002 * OR.L   D0,(A1)
+  MOVE.W  #$8042, $4004 * OR.W   D2,D0
+  MOVE.W  #$8082, $4006 * OR.L   D2,D0
+
+  MOVE.W  #$8F57, $4008 * OR.W   D7,(A7)
+  MOVE.W  #$8F97, $400A * OR.L   D7,(A7)
+  MOVE.W  #$8E46, $400C * OR.W   D6,D7
+  MOVE.W  #$8E86, $400E * OR.L   D6,D7
+
+
 *  MOVE.W    #$4E91, $4000   * JSR Opcode
 *  MOVE.W    #$4EB9,$4000      * JSR 1016 (1)
 *  MOVE.L    #$00001016, $4002 * JSR 1016 (2)
@@ -241,12 +253,33 @@ BRANCHBLOCK_MOVEQ_END * Go here if it's not MOVEQ
   CMP.B   #5,D0
   BEQ     ADDQ
 
-* ---- ADDA ----
+* ---- ADDA / ADD ----
   CLR.L   D0
-  MOVE.L  D7,D0   *DXXX
+  MOVE.W  D7,D0   *DXXX
   AND.W   #$F000,D0
   CMP.W   #$D000,D0
   BEQ     ADD_ADDA
+
+* ---- SUB ----
+  CLR.L   D0
+  MOVE.W  D7,D0
+  AND.W   #$F000,D0
+  CMP.W   #$9000,D0
+  BEQ     SUB
+
+* ---- OR ----
+  CLR.L   D0
+  MOVE.W  D7,D0
+  AND.W   #$F000,D0
+  CMP.W   #$8000,D0
+  BEQ     OR
+
+* ---- AND ----
+  CLR.L   D0
+  MOVE.W  D7,D0
+  AND.W   #$F000,D0
+  CMP.W   #$C000,D0
+  BEQ     AND
 
 * ---- BCC ----
   CLR.L   D0
@@ -287,6 +320,310 @@ BRANCHBLOCK_MOVEQ_END * Go here if it's not MOVEQ
 *    \|_______| \|__|      \|_______| \|_______| \|_______| \|_______|
 *
 *-------------------------------------------------------------------------------
+
+
+*-------------------------------------------------------------------------------
+* AND
+*
+*
+*-------------------------------------------------------------------------------
+AND
+
+* ------ Print "AND" ------
+  LEA     PRINT_AND,A5    * Load the print subroutine into intermediate address
+  MOVE.L  A5, -(SP)       * Put the print subroutine jump onto the stack
+  ADD.W   #4,PRINT_COUNT
+
+* ------ Print size ------
+  CLR.L   D0
+  MOVE.L  D7,D0
+
+  ROR.W   #06,D0     * Get bits 7,6 on end
+  AND.B   #03,D0     * Isolate bits 7,6
+
+  MOVE.B   D0,D4            * Move bits 7,6 to D4 for BWL
+  JSR      PUSH_BWL
+
+* ------ Reset D0, determine order ------
+  MOVE.L  D7,D0
+  ROR.W   #08,D0     * Get bit 8 on the end
+  AND.W   #1,D0
+
+  * If bit 8 == 0 the order is <ea> AND Dn
+  * If bit 8 == 1 the order is Dn AND <ea>
+
+
+  CMP.B   #1,D0
+  BEQ     AND_DN_FIRST
+
+* ------ Print order is effective address, data register ------
+AND_EA_FIRST
+
+  * ------ An is not allowed ------
+  CLR.L   D0
+  MOVE.B  D7,D0	* Put opcode in D0
+  AND.B   #$38,D0	* Mask D0 with 0111000 to get MODE bits only
+  ASR.B   #3,D0	* Shift the result so D0 ranges between 000 and 111
+
+  CMP.B   #1,D0			*001 -> Address Register
+  BEQ     PRINT_ILLEGAL
+
+  * ------ Print the effective address ------
+  MOVE.L  D7,D6 * Put full opcode into D6 as parameter
+  JSR     PUSH_EA_MODE_ID
+
+  * ------ Print a comma ------
+  LEA     PRINT_COMMA,A5   * Load the print subroutine
+  MOVE.L  A5, -(SP)       * Put the print subroutine jump onto the stack
+  ADD.W   #4,PRINT_COUNT  * Increment Print Count by 1 long
+
+  * ------ Determine the register number ------
+  MOVE.L  D7,D0
+  ROR.W   #08,D0 * Get bits 9, 10, and 11 on the end
+  ROR.W   #01,D0 * Get bits 9, 10, and 11 on the end
+  AND.W   #7,D0 * Mask against 111 to only get 3 bits
+
+  * ------ Print the register number ------
+  MOVE.B  D0,MISC_NUMBER
+  LEA     PRINT_MISC_NUMBER_AS_REGISTER,A5   * Load the print subroutine
+  MOVE.L  A5, -(SP)       * Put the print subroutine jump onto the stack
+  ADD.W   #4,PRINT_COUNT  * Increment Print Count by 1 long
+
+  ADD.W  #2,LOOP_INC     * Increment the loop counter by 4 bytes
+
+  BRA   PRINT_OPCODE
+
+
+* ------ Print order is data register, effective address ------
+AND_DN_FIRST
+
+
+  * ------ Determine the register number ------
+  MOVE.L  D7,D0
+  ROR.W   #08,D0 * Get bits 9, 10, and 11 on the end
+  ROR.W   #01,D0 * Get bits 9, 10, and 11 on the end
+  AND.W   #7,D0 * Mask against 111 to only get 3 bits
+
+  * ------ Print the register number ------
+  MOVE.B  D0,MISC_NUMBER
+  LEA     PRINT_MISC_NUMBER_AS_REGISTER,A5   * Load the print subroutine
+  MOVE.L  A5, -(SP)       * Put the print subroutine jump onto the stack
+  ADD.W   #4,PRINT_COUNT  * Increment Print Count by 1 long
+
+  * ------ Print a comma ------
+  LEA     PRINT_COMMA,A5   * Load the print subroutine
+  MOVE.L  A5, -(SP)       * Put the print subroutine jump onto the stack
+  ADD.W   #4,PRINT_COUNT  * Increment Print Count by 1 long
+
+  * ------ Print the effective address ------
+  MOVE.L  D7,D6 * Put full opcode into D6 as parameter
+  JSR     PUSH_EA_MODE_ID
+
+  ADD.W  #2,LOOP_INC     * Increment the loop counter by 4 bytes
+
+  BRA   PRINT_OPCODE
+
+
+*-------------------------------------------------------------------------------
+* OR
+*
+*
+*-------------------------------------------------------------------------------
+OR
+
+* ------ Print "OR" ------
+  LEA     PRINT_OR,A5    * Load the print subroutine into intermediate address
+  MOVE.L  A5, -(SP)       * Put the print subroutine jump onto the stack
+  ADD.W   #4,PRINT_COUNT
+
+* ------ Print size ------
+  CLR.L   D0
+  MOVE.L  D7,D0
+
+  ROR.W   #06,D0     * Get bits 7,6 on end
+  AND.B   #03,D0     * Isolate bits 7,6
+
+  MOVE.B   D0,D4            * Move bits 7,6 to D4 for BWL
+  JSR      PUSH_BWL
+
+* ------ Reset D0, determine order ------
+  MOVE.L  D7,D0
+  ROR.W   #08,D0     * Get bit 8 on the end
+  AND.W   #1,D0
+
+  * If bit 8 == 0 the order is <ea> OR Dn
+  * If bit 8 == 1 the order is Dn OR <ea>
+
+
+  CMP.B   #1,D0
+  BEQ     OR_DN_FIRST
+
+* ------ Print order is effective address, data register ------
+OR_EA_FIRST
+
+  * ------ An is not allowed ------
+  CLR.L   D0
+  MOVE.B  D7,D0	* Put opcode in D0
+  AND.B   #$38,D0	* Mask D0 with 0111000 to get MODE bits only
+  ASR.B   #3,D0	* Shift the result so D0 ranges between 000 and 111
+
+  CMP.B   #1,D0			*001 -> Address Register
+  BEQ     PRINT_ILLEGAL
+
+  * ------ Print the effective address ------
+  MOVE.L  D7,D6 * Put full opcode into D6 as parameter
+  JSR     PUSH_EA_MODE_ID
+
+  * ------ Print a comma ------
+  LEA     PRINT_COMMA,A5   * Load the print subroutine
+  MOVE.L  A5, -(SP)       * Put the print subroutine jump onto the stack
+  ADD.W   #4,PRINT_COUNT  * Increment Print Count by 1 long
+
+  * ------ Determine the register number ------
+  MOVE.L  D7,D0
+  ROR.W   #08,D0 * Get bits 9, 10, and 11 on the end
+  ROR.W   #01,D0 * Get bits 9, 10, and 11 on the end
+  AND.W   #7,D0 * Mask against 111 to only get 3 bits
+
+  * ------ Print the register number ------
+  MOVE.B  D0,MISC_NUMBER
+  LEA     PRINT_MISC_NUMBER_AS_REGISTER,A5   * Load the print subroutine
+  MOVE.L  A5, -(SP)       * Put the print subroutine jump onto the stack
+  ADD.W   #4,PRINT_COUNT  * Increment Print Count by 1 long
+
+  ADD.W  #2,LOOP_INC     * Increment the loop counter by 4 bytes
+
+  BRA   PRINT_OPCODE
+
+
+* ------ Print order is data register, effective address ------
+OR_DN_FIRST
+
+
+  * ------ Determine the register number ------
+  MOVE.L  D7,D0
+  ROR.W   #08,D0 * Get bits 9, 10, and 11 on the end
+  ROR.W   #01,D0 * Get bits 9, 10, and 11 on the end
+  AND.W   #7,D0 * Mask against 111 to only get 3 bits
+
+  * ------ Print the register number ------
+  MOVE.B  D0,MISC_NUMBER
+  LEA     PRINT_MISC_NUMBER_AS_REGISTER,A5   * Load the print subroutine
+  MOVE.L  A5, -(SP)       * Put the print subroutine jump onto the stack
+  ADD.W   #4,PRINT_COUNT  * Increment Print Count by 1 long
+
+  * ------ Print a comma ------
+  LEA     PRINT_COMMA,A5   * Load the print subroutine
+  MOVE.L  A5, -(SP)       * Put the print subroutine jump onto the stack
+  ADD.W   #4,PRINT_COUNT  * Increment Print Count by 1 long
+
+  * ------ Print the effective address ------
+  MOVE.L  D7,D6 * Put full opcode into D6 as parameter
+  JSR     PUSH_EA_MODE_ID
+
+  ADD.W  #2,LOOP_INC     * Increment the loop counter by 4 bytes
+
+  BRA   PRINT_OPCODE
+
+
+
+
+*-------------------------------------------------------------------------------
+* SUB
+*
+*
+*-------------------------------------------------------------------------------
+SUB
+
+* ------ Print "SUB" ------
+  LEA     PRINT_SUB,A5    * Load the print subroutine into intermediate address
+  MOVE.L  A5, -(SP)       * Put the print subroutine jump onto the stack
+  ADD.W   #4,PRINT_COUNT
+
+* ------ Print size ------
+  CLR.L   D0
+  MOVE.L  D7,D0
+
+  ROR.W   #06,D0     * Get bits 7,6 on end
+  AND.B   #03,D0     * Isolate bits 7,6
+
+  MOVE.B   D0,D4            * Move bits 7,6 to D4 for BWL
+  JSR      PUSH_BWL
+
+* ------ Reset D0, determine order ------
+  MOVE.L  D7,D0
+  ROR.W   #08,D0     * Get bit 8 on the end
+  AND.W   #1,D0
+
+  * If bit 8 == 0 the order is Dn - <ea>
+  * If bit 8 == 1 the order is <ea> - Dn
+
+  CMP.B   #0,D0
+  BEQ     SUB_DN_FIRST
+
+* ------ Print order is effective address, data register ------
+SUB_EA_FIRST
+
+
+  * ------ Print the effective address ------
+  MOVE.L  D7,D6 * Put full opcode into D6 as parameter
+  JSR     PUSH_EA_MODE_ID
+
+  * ------ Print a comma ------
+  LEA     PRINT_COMMA,A5   * Load the print subroutine
+  MOVE.L  A5, -(SP)       * Put the print subroutine jump onto the stack
+  ADD.W   #4,PRINT_COUNT  * Increment Print Count by 1 long
+
+  * ------ Determine the register number ------
+  MOVE.L  D7,D0
+  ROR.W   #08,D0 * Get bits 9, 10, and 11 on the end
+  ROR.W   #01,D0 * Get bits 9, 10, and 11 on the end
+  AND.W   #7,D0 * Mask against 111 to only get 3 bits
+
+  * ------ Print the register number ------
+  MOVE.B  D0,MISC_NUMBER
+  LEA     PRINT_MISC_NUMBER_AS_REGISTER,A5   * Load the print subroutine
+  MOVE.L  A5, -(SP)       * Put the print subroutine jump onto the stack
+  ADD.W   #4,PRINT_COUNT  * Increment Print Count by 1 long
+
+  ADD.W  #2,LOOP_INC     * Increment the loop counter by 4 bytes
+
+  BRA   PRINT_OPCODE
+
+
+* ------ Print order is data register, effective address ------
+SUB_DN_FIRST
+
+
+  * ------ Determine the register number ------
+  MOVE.L  D7,D0
+  ROR.W   #08,D0 * Get bits 9, 10, and 11 on the end
+  ROR.W   #01,D0 * Get bits 9, 10, and 11 on the end
+  AND.W   #7,D0 * Mask against 111 to only get 3 bits
+
+  * ------ Print the register number ------
+  MOVE.B  D0,MISC_NUMBER
+  LEA     PRINT_MISC_NUMBER_AS_REGISTER,A5   * Load the print subroutine
+  MOVE.L  A5, -(SP)       * Put the print subroutine jump onto the stack
+  ADD.W   #4,PRINT_COUNT  * Increment Print Count by 1 long
+
+  * ------ Print a comma ------
+  LEA     PRINT_COMMA,A5   * Load the print subroutine
+  MOVE.L  A5, -(SP)       * Put the print subroutine jump onto the stack
+  ADD.W   #4,PRINT_COUNT  * Increment Print Count by 1 long
+
+  * ------ Print the effective address ------
+  MOVE.L  D7,D6 * Put full opcode into D6 as parameter
+  JSR     PUSH_EA_MODE_ID
+
+  ADD.W  #2,LOOP_INC     * Increment the loop counter by 4 bytes
+
+  BRA   PRINT_OPCODE
+
+
+
+
+
 
 *-------------------------------------------------------------------------------
 * MOVEM
@@ -2407,6 +2744,54 @@ PRINT_MOVEM
     TRAP            #15			* Print ", "
     BRA             PRINT_OPCODE_LOOP_RETURN
 
+*-------------------------------------------------------------------------------
+*
+*		PRINT SUB
+*________________________________________
+* Register Use Summary:
+*
+* D0: LOCAL VARIABLE  - Trap task designator
+*
+* A1: LOCAL VARIABLE  - String address
+*-------------------------------------------------------------------------------
+PRINT_SUB
+    LEA             STRING_SUB,A1	* Load "SUB" into A1
+    MOVE.B          #14,D0		* Set trap task to String
+    TRAP            #15			* Print ", "
+    BRA             PRINT_OPCODE_LOOP_RETURN
+
+*-------------------------------------------------------------------------------
+*
+*		PRINT AND
+*________________________________________
+* Register Use Summary:
+*
+* D0: LOCAL VARIABLE  - Trap task designator
+*
+* A1: LOCAL VARIABLE  - String address
+*-------------------------------------------------------------------------------
+PRINT_AND
+    LEA             STRING_AND,A1	* Load "AND" into A1
+    MOVE.B          #14,D0		* Set trap task to String
+    TRAP            #15			* Print ", "
+    BRA             PRINT_OPCODE_LOOP_RETURN
+
+*-------------------------------------------------------------------------------
+*
+*		PRINT OR
+*________________________________________
+* Register Use Summary:
+*
+* D0: LOCAL VARIABLE  - Trap task designator
+*
+* A1: LOCAL VARIABLE  - String address
+*-------------------------------------------------------------------------------
+PRINT_OR
+    LEA             STRING_OR,A1	* Load "OR" into A1
+    MOVE.B          #14,D0		* Set trap task to String
+    TRAP            #15			* Print ", "
+    BRA             PRINT_OPCODE_LOOP_RETURN
+
 
 *-------------------------------------------------------------------------------
 *
@@ -3586,6 +3971,9 @@ STRING_MOVE                 DC.B    'MOVE',0
 STRING_MOVEA                DC.B    'MOVEA',0
 STRING_MOVEQ                DC.B    'MOVEQ    ',0
 STRING_MOVEM                DC.B    'MOVEM',0
+STRING_SUB                  DC.B    'SUB',0
+STRING_AND                  DC.B    'AND',0
+STRING_OR                   DC.B    'OR',0
 
 STRING_A0                   DC.B    'A0,',0
 STRING_A1                   DC.B    'A1,',0

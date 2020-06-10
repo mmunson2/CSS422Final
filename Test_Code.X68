@@ -27,6 +27,40 @@ JSR Test
   MOVE.W  #$DE4F, $400C * ADD.W   A7,D7
   MOVE.W  #$DE8F, $400E * ADD.L   A7,D7
 
+* ------ SUB TEST ------
+  MOVE.W  #$9151, $4000 * SUB.W   D0,(A1)
+  MOVE.W  #$9191, $4002 * SUB.L   D0,(A1)
+  MOVE.W  #$9049, $4004 * SUB.W   A1,D0
+  MOVE.W  #$9089, $4006 * SUB.L   A1,D0
+
+  MOVE.W  #$9F57, $4008 * SUB.W   D7,(A7)
+  MOVE.W  #$9F97, $400A * SUB.L   D7,(A7)
+  MOVE.W  #$9E4F, $400C * SUB.W   A7,D7
+  MOVE.W  #$9E8F, $400E * SUB.L   A7,D7
+
+* ------ AND TEST ------
+  MOVE.W  #$C151, $4000 * AND.W   D0,(A1)
+  MOVE.W  #$C191, $4002 * AND.L   D0,(A1)
+  MOVE.W  #$C042, $4004 * AND.W   D2,D0
+  MOVE.W  #$C082, $4006 * AND.L   D2,D0
+
+  MOVE.W  #$CF57, $4008 * AND.W   D7,(A7)
+  MOVE.W  #$CF97, $400A * AND.L   D7,(A7)
+  MOVE.W  #$CE46, $400C * AND.W   D6,D7
+  MOVE.W  #$CE86, $400E * AND.L   D6,D7
+
+* ------ OR TEST ------
+  MOVE.W  #$8151, $4000 * OR.W   D0,(A1)
+  MOVE.W  #$8191, $4002 * OR.L   D0,(A1)
+  MOVE.W  #$8042, $4004 * OR.W   D2,D0
+  MOVE.W  #$8082, $4006 * OR.L   D2,D0
+
+  MOVE.W  #$8F57, $4008 * OR.W   D7,(A7)
+  MOVE.W  #$8F97, $400A * OR.L   D7,(A7)
+  MOVE.W  #$8E46, $400C * OR.W   D6,D7
+  MOVE.W  #$8E86, $400E * OR.L   D6,D7
+
+
 * ------ ADDQ TEST ------
   MOVE.W  #$5200, $4000 * ADDQ.B  #1,D0
   MOVE.W  #$5441, $4002 * ADDQ.W  #2,D1
