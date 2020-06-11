@@ -56,6 +56,12 @@ INITIALIZE
   MOVE.B    #0, MISC_NUMBER
   MOVE.W    #0, LINE_COUNT
 
+
+  MOVE.W    #$C23C, $4000
+  MOVE.W    #$0012, $4002
+  MOVE.L    #$C3780012, $4004
+
+
   * Begin the user input loop
   JSR GET_INPUT
 
@@ -2281,6 +2287,7 @@ PUSH_BWL
 *----------------------------------------
 PUSH_BWL_BYTE
     LEA             PRINT_BYTE_DESIGNATOR,A5
+    MOVE.W          #1,IS_WORD
     BRA             PUSH_BWL_FINISH
 *________________________________________
 * Load Word Print Label
