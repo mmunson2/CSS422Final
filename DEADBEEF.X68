@@ -1524,12 +1524,8 @@ LSX_ASX_ROX_REGISTER
   ASR.L   #$8,D0
   ASR.L   #$1,D0
 
-  MOVE.L  D0,D7
-  LEA   PRINT_EA_MODE_ID_DN,A5  * Print data register
-  MOVE.L    A5, -(SP)
-  ADD.W     #4, PRINT_COUNT
-
-  LEA LSX_ASX_ROX_RESET_D7,A5
+  MOVE.B  D0,MISC_NUMBER
+  LEA   PRINT_MISC_NUMBER_AS_REGISTER,A5  * Print data register
   MOVE.L    A5, -(SP)
   ADD.W     #4, PRINT_COUNT
 
@@ -4153,13 +4149,12 @@ QUERY_CONTINUE
 
     CMP.B   #$79,(A1)
     BEQ     INITIALIZE
-    
+
     LEA     STRING_EXITING,A1
     MOVE.B  #13,D0
     TRAP    #15
 
     SIMHALT
-
 
 *-------------------------------------------------------------------------------
 *                ________  ________  _________  ________
@@ -4253,7 +4248,6 @@ LINE_COUNT    DS.W    1    * How many lines are currently displayed onscreen
 
 
     END    START
-
 
 
 
