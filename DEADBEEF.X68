@@ -104,6 +104,7 @@ OPCODE_LOOP
     MOVE.W  #0,DATA1_IN_USE  * Reset data boolean
     MOVE.B  #0,MISC_NUMBER   * Reset MISC_NUMBER
     MOVE.B  #0,MISC_REGISTER * Reset MISC_REGISTER
+    MOVE.W  #0,IS_WORD
 
 * ------ Execute Subroutines ------
     JSR     PRINTADDR             * Print the memory address
@@ -1296,6 +1297,7 @@ MOVEA
 * easily use the existing PUSH_BWL subroutine
 MOVEA_W
   MOVE.B  #1,D4
+  MOVE.W  #1,IS_WORD
   JSR     PUSH_BWL
   BRA     MOVEA_SIZE_CONTINUE
 
@@ -1737,6 +1739,8 @@ ADDA_W
   LEA     PRINT_WORD_DESIGNATOR,A5 * Load the ".W" print subroutine
   MOVE.L  A5, -(SP)         * Put the subroutine onto the stack
   ADD.W   #4,PRINT_COUNT    * Increment Print Count by 1 long
+
+  MOVE.W    #1,IS_WORD
 
   BRA     ADDA_CONTINUE
 
@@ -2204,10 +2208,23 @@ PUSH_EA_MODE_ID_IND_LONG
     BRA     PUSH_EA_MODE_ID_FINISH
 
 PUSH_EA_MODE_ID_ABS_DATA
+
+    MOVE.W  IS_WORD,A1
+    CMP.W   #1,A1
+    BEQ     PUSH_EA_ABS_DATA_WORD
+
     LEA     PRINT_EA_MODE_ID_ABS_DATA,A5
     ADD.W           #4,LOOP_INC * Adjust the Loop increment to skip the data
         MOVE.W  #1,DATA1_IN_USE
     BRA     PUSH_EA_MODE_ID_FINISH
+
+PUSH_EA_ABS_DATA_WORD
+
+    LEA     PRINT_EA_MODE_ID_ABS_DATA,A5
+    ADD.W           #2,LOOP_INC * Adjust the Loop increment to skip the data
+    MOVE.W  #1,DATA1_IN_USE
+    BRA     PUSH_EA_MODE_ID_FINISH
+
 
 *________________________________________
 PUSH_EA_MODE_ID_FINISH
@@ -3298,12 +3315,30 @@ PRINT_EA_MODE_ID_ABS_DATA
     MOVE.B          #14,D0
     TRAP            #15
 
+    MOVE.W  IS_WORD,A1
+    CMP.W   #1,A1
+    BEQ     PRINT_EA_ABS_DATA
+
     MOVE.L          DATA1,D1
     MOVEQ           #15,D0
     MOVEQ           #16,D2
     TRAP            #15
 
     BRA             PRINT_OPCODE_LOOP_RETURN
+
+PRINT_EA_ABS_DATA
+
+    MOVE.L          DATA1,D1
+    SWAP            D1
+    AND.L           #$0000FFFF,D1
+
+    MOVEQ           #15,D0
+    MOVEQ           #16,D2
+    TRAP            #15
+
+  BRA             PRINT_OPCODE_LOOP_RETURN
+
+
 
 *-------------------------------------------------------------------------------
 *
@@ -4259,7 +4294,8 @@ STRING_D7                   DC.B    'D7,',0
 MISC_NUMBER  DS.B    1    * MISC_NUMBER to be printed
 MISC_OPCODE  DS.W    1
 MISC_REGISTER DS.B   1
-LINE_COUNT    DS.W    1    * How many lines are currently displayed onscreen
+LINE_COUNT    DS.W   1    * How many lines are currently displayed onscreen
+IS_WORD       DS.W   1    * Whether or not the opcode data is a word
 
 
 
