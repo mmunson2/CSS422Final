@@ -3195,7 +3195,7 @@ PRINT_EA_MODE_ID_IND_SHORT
 
     MOVE.L          DATA1,D1
     SWAP            D1              * We only want the upper word
-    AND             #$0000FFFF,D1   * Bit mask for upper word
+    AND.L           #$0000FFFF,D1   * Bit mask for upper word
 
     MOVEQ           #15,D0
     MOVEQ           #16,D2
