@@ -56,12 +56,6 @@ INITIALIZE
   MOVE.B    #0, MISC_NUMBER
   MOVE.W    #0, LINE_COUNT
 
-
-  MOVE.W    #$C23C, $4000
-  MOVE.W    #$0012, $4002
-  MOVE.L    #$C3780012, $4004
-
-
   * Begin the user input loop
   JSR GET_INPUT
 
