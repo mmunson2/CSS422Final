@@ -51,6 +51,12 @@ START:
 
 *-------------------------------------------------------------------------------
 INITIALIZE
+
+  MOVE.W    #$9481,$4000
+
+
+
+
 * ------ Standard Initializations ------
   MOVE.W    #0, PRINT_COUNT
   MOVE.B    #0, MISC_NUMBER
@@ -646,7 +652,7 @@ SUB
   MOVE.L  D7,D0
 
   ROR.W   #06,D0     * Get bits 7,6 on end
-  AND.B   #03,D0     * Isolate bits 7,6
+  AND.W   #03,D0     * Isolate bits 7,6
 
   MOVE.B   D0,D4            * Move bits 7,6 to D4 for BWL
   JSR      PUSH_BWL
