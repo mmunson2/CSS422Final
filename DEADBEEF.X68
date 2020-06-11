@@ -2287,6 +2287,7 @@ PUSH_BWL_BYTE
 *----------------------------------------
 PUSH_BWL_WORD
     LEA             PRINT_WORD_DESIGNATOR,A5
+    MOVE.W          #1,IS_WORD
     BRA             PUSH_BWL_FINISH
 
 *________________________________________
