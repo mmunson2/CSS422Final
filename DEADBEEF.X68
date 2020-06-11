@@ -52,7 +52,8 @@ START:
 *-------------------------------------------------------------------------------
 INITIALIZE
 
-  MOVE.W    #$9481,$4000
+  MOVE.W    #$D5F8,$4000
+  MOVE.W    #$0012,$4002
 
 
 
@@ -1346,8 +1347,8 @@ MOVEA_SIZE_CONTINUE
 LSX_ASX_ROX
   MOVE.L    D7,D0      * Reset D0
   AND.W     #$FEC0,D0
-   
-* ------ Arithmetic Shift MEM ------   
+
+* ------ Arithmetic Shift MEM ------
   CMP.W #$E0C0,D0
   BEQ   ASX
 
@@ -1358,10 +1359,10 @@ LSX_ASX_ROX
 * ------ Rotate MEM ------
   CMP.W #$E6C0,D0
   BEQ   ROX
-  
-  MOVE.L    D7,D0      * Reset D0  
-  AND.W     #$18,D0  * Isolate bits 4,3 
-  
+
+  MOVE.L    D7,D0      * Reset D0
+  AND.W     #$18,D0  * Isolate bits 4,3
+
 * ------ Arithmetic Shift ------
   CMP.W #0,D0
   BEQ   ASX

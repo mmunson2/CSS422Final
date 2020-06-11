@@ -143,7 +143,6 @@ start		EQU	$00009000	* ORG and END address
     SUB.B     (A1)+,D1
     SUB.B     -(A1),D1
     SUB.W     D1,D2
-    SUB.W     D1,A1
     SUB.W     D1,(A1)
     SUB.W     D1,(A1)+
     SUB.W     D1,-(A1)
@@ -152,7 +151,6 @@ start		EQU	$00009000	* ORG and END address
     SUB.W     (A1)+,D1
     SUB.W     -(A1),D1
     SUB.L     D1,D2
-    SUB.L     D1,A1
     SUB.L     D1,(A1)
     SUB.L     D1,(A1)+
     SUB.L     D1,-(A1)
@@ -160,14 +158,6 @@ start		EQU	$00009000	* ORG and END address
     SUB.L     (A1),D1
     SUB.L     (A1)+,D1
     SUB.L     -(A1),D1
-    MULS.W    D0,D1
-    MULS.W    (A0),D1
-    MULS.W    -(A0),D1
-    MULS.W    (A0)+,D1
-    DIVU.W    D0,D1
-    DIVU.W    (A0),D1
-    DIVU.W    -(A0),D1
-    DIVU.W    (A0)+,D1
     AND.B     D1,D2
     AND.B     D1,(A1)
     AND.B     D1,(A1)+
@@ -292,14 +282,6 @@ label3
     ADDA.L    $1234,A2
     ADDA.L    $12345678,A2
     ADDA.L    #$12345678,A2
-    MULS.W    $12,D1
-    MULS.W    $1234,D1
-    MULS.W    $12345678,D1
-    MULS.W    #$1234,D1
-    DIVU.W    $12,D1
-    DIVU.W    $1234,D1
-    DIVU.W    $12345678,D1
-    DIVU.W    #$1234,D1
     AND.B     D1,$12
     AND.B     D1,$1234
     AND.B     D1,$12345678
