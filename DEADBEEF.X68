@@ -51,6 +51,13 @@ START:
 
 *-------------------------------------------------------------------------------
 INITIALIZE
+
+  MOVE.W    #$D5F8,$4000
+  MOVE.W    #$0012,$4002
+
+
+
+
 * ------ Standard Initializations ------
   MOVE.W    #0, PRINT_COUNT
   MOVE.B    #0, MISC_NUMBER
@@ -646,7 +653,7 @@ SUB
   MOVE.L  D7,D0
 
   ROR.W   #06,D0     * Get bits 7,6 on end
-  AND.B   #03,D0     * Isolate bits 7,6
+  AND.W   #03,D0     * Isolate bits 7,6
 
   MOVE.B   D0,D4            * Move bits 7,6 to D4 for BWL
   JSR      PUSH_BWL
@@ -1340,8 +1347,8 @@ MOVEA_SIZE_CONTINUE
 LSX_ASX_ROX
   MOVE.L    D7,D0      * Reset D0
   AND.W     #$FEC0,D0
-   
-* ------ Arithmetic Shift MEM ------   
+
+* ------ Arithmetic Shift MEM ------
   CMP.W #$E0C0,D0
   BEQ   ASX
 
@@ -1352,10 +1359,10 @@ LSX_ASX_ROX
 * ------ Rotate MEM ------
   CMP.W #$E6C0,D0
   BEQ   ROX
-  
-  MOVE.L    D7,D0      * Reset D0  
-  AND.W     #$18,D0  * Isolate bits 4,3 
-  
+
+  MOVE.L    D7,D0      * Reset D0
+  AND.W     #$18,D0  * Isolate bits 4,3
+
 * ------ Arithmetic Shift ------
   CMP.W #0,D0
   BEQ   ASX
@@ -3190,7 +3197,7 @@ PRINT_EA_MODE_ID_IND_SHORT
 
     MOVE.L          DATA1,D1
     SWAP            D1              * We only want the upper word
-    AND             #$0000FFFF,D1   * Bit mask for upper word
+    AND.L           #$0000FFFF,D1   * Bit mask for upper word
 
     MOVEQ           #15,D0
     MOVEQ           #16,D2
