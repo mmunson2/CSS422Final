@@ -14,7 +14,7 @@ start		EQU	$00009000	* ORG and END address
 
 		ORG	start
 
-NOP
+		NOP
     RTS
     NOP
     RTS
@@ -105,7 +105,7 @@ NOP
     MOVEA.L    A0,A0
     MOVEA.L    (A0),A0
     MOVEA.L    (A0)+,A0
-    MOVEA.L    -(A0),A0  
+    MOVEA.L    -(A0),A0
     ADD.B     D1,D2
     ADD.B     D1,(A1)
     ADD.B     D1,(A1)+
@@ -159,7 +159,7 @@ NOP
     SUB.L     A1,D1
     SUB.L     (A1),D1
     SUB.L     (A1)+,D1
-    SUB.L     -(A1),D1    
+    SUB.L     -(A1),D1
     MULS.W    D0,D1
     MULS.W    (A0),D1
     MULS.W    -(A0),D1
@@ -221,7 +221,7 @@ NOP
     LSR.W     (A1)
     LSR.W     (A1)+
     LSR.W     -(A1)
-    LSR.L     D1,D2    
+    LSR.L     D1,D2
     ASR.B     D1,D2
     ASR.W     D1,D2
     ASR.W     (A1)
@@ -233,7 +233,7 @@ NOP
     ASL.W     (A1)
     ASL.W     (A1)+
     ASL.W     -(A1)
-    ASL.L     D1,D2  
+    ASL.L     D1,D2
     BGT.B     label1
     BGT.B     label2
     BLE.B     label1
