@@ -1,8 +1,8 @@
 *-------------------------------------------------------------------------------
 * Title      : PUSH_BWT / EA_MODE_ID Development
 * Written by : Ihsan Halimun, Camden Brewster, Matthew Munson
-* Date       : May 16th 2020
-* Description: It's the whole damn thing!
+* Created    : May 16th 2020
+* Last Edited: June 10th 2020
 *-------------------------------------------------------------------------------
     ORG    $1000
 *-------------------------------------------------------------------------------
@@ -21,9 +21,11 @@ END_ADDR     DS.L  1   *User defined memory end address
 CR    EQU   $0D
 LF    EQU   $0A
 
-PRINT_COUNT    DS.W    1    *How many print statements are sitting in the stack
-PRINT_OPCODE_LOOP_INDEX  DS.W  1   * The print loop index
-STACK_BASE     DS.L    1    *Where we begin putting print calls into stack
+* How many print statements are sitting in the stack:
+PRINT_COUNT              DS.W    1
+
+PRINT_OPCODE_LOOP_INDEX  DS.W    1   * The print loop index
+STACK_BASE               DS.L    1   * Where the print calls start
 
 LOOP_INC       DS.W    1    * How many words to skip to find the next opcode
 LOOP_INDEX     DS.L    1    * The opcode loop's index
@@ -52,77 +54,16 @@ INITIALIZE
 
 * ------ Test Initializations ------
 
-
-* ------ ADDA TEST ------
-  MOVE.W   #$D2C0, $4000 * ADDA.W    D0,A1
-  MOVE.W   #$D3C0, $4002 * ADDA.L    D0,A1
-  MOVE.W   #$DEC7, $4004 * ADDA.W    D7,A7
-  MOVE.W   #$DFC7, $4006 * ADDA.L    D7,A7
-
-  MOVE.W   #$D2C8, $4008 * ADDA.W    A0,A1
-  MOVE.W   #$D5C9, $400A * ADDA.L    A1,A2
-  MOVE.W   #$D6CA, $400C * ADDA.W    A2,A3
-  MOVE.W   #$DFCE, $400E * ADDA.L    A6,A7
-
-  MOVE.W   #$D2D0, $4010 * ADDA.W    (A0),A1
-  MOVE.W   #$D3D0, $4012 * ADDA.L    (A0),A1
-  MOVE.W   #$DED7, $4014 * ADDA.W    (A7),A7
-  MOVE.W   #$DFD7, $4016 * ADDA.L    (A7),A7
-
-  MOVE.W   #$D2D8, $4018 * ADDA.W    (A0)+,A1
-  MOVE.W   #$D3D8, $401A * ADDA.L    (A0)+,A1
-  MOVE.W   #$DEDF, $401C * ADDA.W    (A7)+,A7
-  MOVE.W   #$DFDF, $401E * ADDA.L    (A7)+,A7
-
-  MOVE.W   #$D2E0, $4020 * ADDA.W    -(A0),A1
-  MOVE.W   #$D3E0, $4022 * ADDA.L    -(A0),A1
-  MOVE.W   #$DEE7, $4024 * ADDA.W    -(A7),A7
-  MOVE.W   #$DFE7, $4026 * ADDA.L    -(A7),A7
-
-  MOVE.W   #$D3F9, $4028 * ADDA.L    DEADBEEF,A1
-  MOVE.L   #$00001032, $402A
-
-  MOVE.W   #$D4F9, $402E * ADDA.W    DEAD,A1
-  MOVE.L   #$00001032, $4030
-
-  MOVE.W   #$D7FC, $4034 * ADDA.W    #$DEADBEEF,A1
-  MOVE.L   #$DEADBEEF, $4036
-
-  MOVE.L    #$AEADAEAD,$403A * DATA
-  MOVE.L    #$AEADAEAD,$403E * DATA
-  MOVE.L    #$AEADAEAD,$4042 * DATA
-  MOVE.L    #$AEADAEAD,$4046 * DATA
-  MOVE.L    #$AEADAEAD,$404A * DATA
-  MOVE.L    #$AEADAEAD,$404E * DATA
-  MOVE.L    #$AEADAEAD,$4052 * DATA
-  MOVE.L    #$AEADAEAD,$4056 * DATA
-
-
-*  MOVE.W    #$4E91, $4000   * JSR Opcode
-*  MOVE.W    #$4EB9,$4000      * JSR 1016 (1)
-*  MOVE.L    #$00001016, $4002 * JSR 1016 (2)
-*  (^ Add 8 to memory address if you want something after this ^)
-
-*  MOVE.W    #$4E71, $4002   * NOP Opcode
-*  MOVE.W    #$4E75, $4004   * RTS Opcode
-*  MOVE.W    #$5241, $4000   * ADDQ Opcode
-*  MOVE.W    #$D240, $4000   * ADD Opcode
-*  MOVE.W    #$D5C9, $4000   * ADDA Opcode (ADDA.L A1,A2)
-*   MOVE.L    #$60000002, $4000   * BRA Opcode
-*   MOVE.L    #$6E000018, $4004   * BRA Opcode
-*   MOVE.W    #$6FE6, $4008
-*   MOVE.W    #$67E2, $400A
-
   MOVE.L    #$4000, START_ADDR
   MOVE.L    #$5000, END_ADDR
-
 
 * ------ Standard Initializations ------
   MOVE.W    #0, PRINT_COUNT
   MOVE.B    #0, MISC_NUMBER
   MOVE.W    #0, LINE_COUNT
 
-  * JSR GET_INPUT
+  * Begin the user input loop
+  JSR GET_INPUT
 
   MOVEA.L  START_ADDR,A0
   MOVE.L   A0,LOOP_INDEX * Both A0 and LOOP_INDEX contain the start address
@@ -148,7 +89,7 @@ INITIALIZE
 OPCODE_LOOP
 
     MOVEA.L LOOP_INDEX,A0
-    CMP.L  END_ADDR, A0  * Check to see if we're done
+    CMP.L   END_ADDR,A0  * Check to see if we're done
     BGT     DONE
 
 * ------ Reset Loop Variables ------
@@ -203,7 +144,8 @@ OPCODE_LOOP_CONTINUE
 
 DONE
 
-    * This will eventually RTE to the user input section
+    JSR     PAUSE_CONSOLE
+    BRA     INITIALIZE
 
     SIMHALT
 
@@ -243,17 +185,16 @@ BRANCHBLOCK
 
   MOVE.L  SP,STACK_BASE   * Save the position of the stack for later
 
-* ---- DEBUG ----
+* ---- EMPTY MEMORY ----
   CMP.L   #$FFFF,D7
-  BEQ   DONE * For debug only! Exit if memory is unset
+  BEQ     PRINT_NON_OPCODE_DATA
 
 * ---- CONSTANT OPCODES ----
   CMP.W   #$4E71,D7
-  BEQ   NOP
+  BEQ     NOP
 
   CMP.W   #$4E75,D7
-  BEQ   RTS
-
+  BEQ     RTS
 
 * ------ MOVE / MOVEA ------
   CLR.L   D0
@@ -288,16 +229,9 @@ BRANCHBLOCK_MOVEQ_END * Go here if it's not MOVEQ
   CLR.L   D0
   MOVE.W  D7,D0
 
-    * Fixed MOVEM bit check
-    AND.W   #$FB80,D0
-    CMP.W   #$4880,D0
+  AND.W   #$FB80,D0 * Mask 1111 1011 1000 0000
+  CMP.W   #$4880,D0
 
-  *ROR.W   #8,D0 *Get bits 11 - 15
-  *ROR.W   #3,D0
-
-  *AND.W   #$1F,D0 * Mask 1 1111
-
-  *CMP.B   #9,D0
   BEQ     MOVEM
 
 * ---- NOT ----
@@ -313,7 +247,6 @@ BRANCHBLOCK_MOVEQ_END * Go here if it's not MOVEQ
   AND.W   #$F1C0,D0
   CMP.W   #$41C0,D0
   BEQ     LEA
-
 
 * ---- ADDQ ----
   CLR.L   D0
@@ -375,8 +308,7 @@ BRANCHBLOCK_MOVEQ_END * Go here if it's not MOVEQ
   CMP     #$13A,D0
   BEQ     JSR
 
-
-* ---- Data is not recognized, print as such ----
+* ---- Data is not recognized as opcode ----
 
   BRA     PRINT_NON_OPCODE_DATA
 
@@ -395,7 +327,11 @@ BRANCHBLOCK_MOVEQ_END * Go here if it's not MOVEQ
 *-------------------------------------------------------------------------------
 * LEA
 *
+* Load Effective address
 *
+* "LEA" -> "    " -> <ea> -> "," -> An
+*
+* Effective address does not allow Dn, An, (An)+, -(An)
 *-------------------------------------------------------------------------------
 LEA
 
@@ -405,8 +341,8 @@ LEA
   ADD.W   #4,PRINT_COUNT
 
   * ------ Print some spaces ------
-  LEA     PRINT_FOURSPACE,A5    * Load the print subroutine into intermediate address
-  MOVE.L  A5, -(SP)       * Put the print subroutine jump onto the stack
+  LEA     PRINT_FOURSPACE,A5    * Load the print subroutine into temp
+  MOVE.L  A5, -(SP)             * Put the print subroutine jump onto the stack
   ADD.W   #4,PRINT_COUNT
 
   * ------ Dn,An,(An)+,-(An) are not allowed ------
@@ -433,7 +369,6 @@ LEA
   MOVE.L  A5, -(SP)       * Put the print subroutine jump onto the stack
   ADD.W   #4,PRINT_COUNT  * Increment Print Count by 1 long
 
-
 * ------ Get Destination Address ------
   MOVE.L    D7,D0
   ROR.W     #$8,D0 * Get the three register bits
@@ -444,8 +379,8 @@ LEA
 
 * ------ Print Destination Address ------
   LEA       PRINT_MISC_NUMBER_AS_ADDRESS,A5
-  MOVE.L  A5, -(SP)       * Put the print subroutine jump onto the stack
-  ADD.W           #4,PRINT_COUNT
+  MOVE.L    A5, -(SP)       * Put the print subroutine jump onto the stack
+  ADD.W     #4,PRINT_COUNT
 
 
   ADD.W  #2,LOOP_INC     * Increment the loop counter by 4 bytes
@@ -456,7 +391,9 @@ LEA
 *-------------------------------------------------------------------------------
 * NOT
 *
+* "NOT" -> <.Size> -> <ea>
 *
+* Effective address does not allow An
 *-------------------------------------------------------------------------------
 NOT
 
@@ -497,7 +434,6 @@ NOT
 *-------------------------------------------------------------------------------
 * AND
 *
-*
 *-------------------------------------------------------------------------------
 AND
 
@@ -507,13 +443,13 @@ AND
   ADD.W   #4,PRINT_COUNT
 
 * ------ Print size ------
-  CLR.L   D0
-  MOVE.L  D7,D0
+  CLR.L    D0
+  MOVE.L   D7,D0
 
-  ROR.W   #06,D0     * Get bits 7,6 on end
-  AND.B   #03,D0     * Isolate bits 7,6
+  ROR.W    #06,D0     * Get bits 7,6 on end
+  AND.B    #03,D0     * Isolate bits 7,6
 
-  MOVE.B   D0,D4            * Move bits 7,6 to D4 for BWL
+  MOVE.B   D0,D4     * Move bits 7,6 to D4 for BWL
   JSR      PUSH_BWL
 
 * ------ Reset D0, determine order ------
@@ -523,7 +459,6 @@ AND
 
   * If bit 8 == 0 the order is <ea> AND Dn
   * If bit 8 == 1 the order is Dn AND <ea>
-
 
   CMP.B   #1,D0
   BEQ     AND_DN_FIRST
@@ -1145,8 +1080,6 @@ MOVEQ
 * MOVE_MOVEA
 *
 * Both opcodes start with 00 so we need to figure out which is which
-*
-*
 *-------------------------------------------------------------------------------
 MOVE_MOVEA
     CLR.L   D0
@@ -1163,7 +1096,7 @@ MOVE_MOVEA
 *-------------------------------------------------------------------------------
 * MOVE
 *
-* JESUS H. CHRIST
+* This hurts me
 *
 *-------------------------------------------------------------------------------
 MOVE
@@ -1338,7 +1271,6 @@ MOVE_MODE_FINISH
 * MOVEA
 *
 *
-*
 *-------------------------------------------------------------------------------
 MOVEA
 
@@ -1413,17 +1345,25 @@ MOVEA_SIZE_CONTINUE
 *-------------------------------------------------------------------------------
 LSX_ASX_ROX
   MOVE.L    D7,D0      * Reset D0
-  AND.W     #$18,D0  * Isolate bits 4,3
+  AND.W     #$18,D0    * Isolate bits 4,3
 
+* ------ Arithmetic Shift ------
   CMP.W #0,D0
   BEQ   ASX
 
+* ------ Logical Shift ------
   CMP.W #8,D0
   BEQ   LSX
 
+* ------ Rotate ------
   CMP.W #$18,D0
   BEQ   ROX
 
+  BRA   PRINT_ILLEGAL
+
+*______________________________
+*Determine Logical Shift Direction
+*------------------------------
 LSX
   MOVE.L    D7,D0      * Reset D0
   AND.W     #$100,D0   * Isolate bit 8
@@ -1431,6 +1371,9 @@ LSX
   BEQ       LSR
   BRA       LSL
 
+*______________________________
+* Logical Shift Right
+*------------------------------
 LSR
   LEA     PRINT_LSR,A5    * Load the print subroutine into intermediate address
   MOVE.L  A5, -(SP)       * Put the print subroutine jump onto the stack
@@ -1438,6 +1381,9 @@ LSR
 
   BRA     LSX_ASX_ROX_CONTINUE
 
+*______________________________
+* Logical Shift Left
+*------------------------------
 LSL
   LEA     PRINT_LSL,A5    * Load the print subroutine into intermediate address
   MOVE.L  A5, -(SP)       * Put the print subroutine jump onto the stack
@@ -1445,6 +1391,9 @@ LSL
 
   BRA     LSX_ASX_ROX_CONTINUE
 
+*______________________________
+*Determine Arithmetic Shift Direction
+*------------------------------
 ASX
   MOVE.L    D7,D0      * Reset D0
   AND.W     #$100,D0   * Isolate bit 8
@@ -1452,6 +1401,9 @@ ASX
   BEQ       ASR
   BRA       ASL
 
+*______________________________
+* Arithmetic Shift Right
+*------------------------------
 ASR
   LEA     PRINT_ASR,A5    * Load the print subroutine into intermediate address
   MOVE.L  A5, -(SP)       * Put the print subroutine jump onto the stack
@@ -1459,6 +1411,9 @@ ASR
 
   BRA     LSX_ASX_ROX_CONTINUE
 
+*______________________________
+* Arithmetic Shift Left
+*------------------------------
 ASL
   LEA     PRINT_ASL,A5    * Load the print subroutine into intermediate address
   MOVE.L  A5, -(SP)       * Put the print subroutine jump onto the stack
@@ -1466,6 +1421,9 @@ ASL
 
   BRA     LSX_ASX_ROX_CONTINUE
 
+*______________________________
+* Determine Rotate Direction
+*------------------------------
 ROX
   MOVE.L    D7,D0      * Reset D0
   AND.W     #$100,D0   * Isolate bit 8
@@ -1473,6 +1431,9 @@ ROX
   BEQ       ROR
   BRA       ROL
 
+*______________________________
+* Rotate Right
+*------------------------------
 ROR
   LEA     PRINT_ROR,A5    * Load the print subroutine into intermediate address
   MOVE.L  A5, -(SP)       * Put the print subroutine jump onto the stack
@@ -1480,6 +1441,9 @@ ROR
 
   BRA     LSX_ASX_ROX_CONTINUE
 
+*______________________________
+* Rotate Left
+*------------------------------
 ROL
   LEA     PRINT_ROL,A5    * Load the print subroutine into intermediate address
   MOVE.L  A5, -(SP)       * Put the print subroutine jump onto the stack
@@ -1487,6 +1451,9 @@ ROL
 
   BRA     LSX_ASX_ROX_CONTINUE
 
+*______________________________
+* All Subroutine Continue
+*------------------------------
 LSX_ASX_ROX_CONTINUE
   MOVE.L    D7,D0      * Reset D0
   ROR.L     #$06,D0    * Isolate bits 7,6
@@ -1505,6 +1472,9 @@ LSX_ASX_ROX_CONTINUE
   BEQ       LSX_ASX_ROX_SHIFT
   BRA       LSX_ASX_ROX_REGISTER
 
+*__________________________________
+* Print the number of bits to shift
+*----------------------------------
 LSX_ASX_ROX_SHIFT
   MOVE.L  D7,D0             * Reset D0
   AND.L   #$E00,D0           * Get bits 11 - 9
@@ -1528,8 +1498,11 @@ LSX_ASX_ROX_SHIFT
   MOVE.L    A5, -(SP)
   ADD.W     #4, PRINT_COUNT
 
-  BRA LSX_ASX_ROX_CONTINUE2
+  BRA LSX_ASX_ROX_FINISH
 
+*__________________________________
+* Convert 0 to 8 (Special case)
+*----------------------------------
 LSX_ASX_ROX_SHIFT_8
   MOVE.L  #8,DATA1
   LEA PRINT_EA_MODE_ID_ABS_DATA,A5  * Print shift count 8
@@ -1545,13 +1518,15 @@ LSX_ASX_ROX_SHIFT_8
   MOVE.L    A5, -(SP)
   ADD.W     #4, PRINT_COUNT
 
-  BRA LSX_ASX_ROX_CONTINUE2
+  BRA LSX_ASX_ROX_FINISH
 
+*__________________________________
+* Print the register that contains the number of bits to shift
+*----------------------------------
 LSX_ASX_ROX_REGISTER
   MOVE.L    D7,D0      * Reset D0
-  AND.L   #$E00,D0           * Get bits 11 - 9  LEA PRINT_FOURSPACE,A5
-  MOVE.L    A5,-(SP)
-  ADD.W    #4,PRINT_COUNT
+  AND.L   #$E00,D0
+
   ASR.L   #$8,D0
   ASR.L   #$1,D0
 
@@ -1572,27 +1547,30 @@ LSX_ASX_ROX_REGISTER
   MOVE.L    A5, -(SP)
   ADD.W     #4, PRINT_COUNT
 
-  BRA LSX_ASX_ROX_CONTINUE2
+  BRA LSX_ASX_ROX_FINISH
 
+*__________________________________
+* Memory Shift mode
+*----------------------------------
 LSX_ASX_ROX_MEM
   MOVE.L D7,D6
   AND.L #$38,D6
   CMP.W #8,D6
-  BLE   LSX_ASX_ROX_PRINT_ILLEGAL
+  BLE   PRINT_ILLEGAL
 
   LEA PRINT_FOURSPACE,A5
   MOVE.L    A5,-(SP)
   ADD.W    #4,PRINT_COUNT
 
   JSR     PUSH_EA_MODE_ID
-  BRA LSX_ASX_ROX_CONTINUE2
+  BRA LSX_ASX_ROX_FINISH
 
-LSX_ASX_ROX_PRINT_ILLEGAL
-  ADD #4,SP
-  BRA PRINT_ILLEGAL
 
-LSX_ASX_ROX_CONTINUE2
-  MOVE.W  #4,LOOP_INC
+*__________________________________
+* Finish
+*----------------------------------
+LSX_ASX_ROX_FINISH
+  MOVE.W  #2,LOOP_INC
   BRA   PRINT_OPCODE
 
 LSX_ASX_ROX_RESET_D7
