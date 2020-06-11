@@ -1345,8 +1345,23 @@ MOVEA_SIZE_CONTINUE
 *-------------------------------------------------------------------------------
 LSX_ASX_ROX
   MOVE.L    D7,D0      * Reset D0
-  AND.W     #$18,D0    * Isolate bits 4,3
+  AND.W     #$FEC0,D0
+   
+* ------ Arithmetic Shift MEM ------   
+  CMP.W #$E0C0,D0
+  BEQ   ASX
 
+* ------ Logical Shift MEM -----
+  CMP.W #$E2C0,D0
+  BEQ   LSX
+
+* ------ Rotate MEM ------
+  CMP.W #$E6C0,D0
+  BEQ   ROX
+  
+  MOVE.L    D7,D0      * Reset D0  
+  AND.W     #$18,D0  * Isolate bits 4,3 
+  
 * ------ Arithmetic Shift ------
   CMP.W #0,D0
   BEQ   ASX
@@ -1360,7 +1375,6 @@ LSX_ASX_ROX
   BEQ   ROX
 
   BRA   PRINT_ILLEGAL
-
 *______________________________
 *Determine Logical Shift Direction
 *------------------------------
@@ -4254,6 +4268,7 @@ LINE_COUNT    DS.W    1    * How many lines are currently displayed onscreen
 
 
     END    START
+
 
 
 
