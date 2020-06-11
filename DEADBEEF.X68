@@ -51,12 +51,6 @@ START:
 
 *-------------------------------------------------------------------------------
 INITIALIZE
-
-* ------ Test Initializations ------
-
-  MOVE.L    #$4000, START_ADDR
-  MOVE.L    #$5000, END_ADDR
-
 * ------ Standard Initializations ------
   MOVE.W    #0, PRINT_COUNT
   MOVE.B    #0, MISC_NUMBER
@@ -145,7 +139,7 @@ OPCODE_LOOP_CONTINUE
 DONE
 
     JSR     PAUSE_CONSOLE
-    BRA     INITIALIZE
+    BRA     QUERY_CONTINUE
 
     SIMHALT
 
@@ -4142,7 +4136,30 @@ STH_INCREASE_VALUE
 
 * END OF GET_INPUT -----------------------------------------------
 
+*-----------------------------------------------------------------
+* QUERY_CONTINUE
+*
+* Called before anything else, clears what it uses
+*-----------------------------------------------------------------
+QUERY_CONTINUE
+
+    LEA     STRING_QUERY_CONTINUE,A1
+    MOVE.B  #13,D0
+    TRAP    #15
+
+    MOVEA   #0,A1
+    MOVE.B  #2,D0
+    TRAP    #15
+
+    CMP.B   #$79,(A1)
+    BEQ     INITIALIZE
+    
+    LEA     STRING_EXITING,A1
+    MOVE.B  #13,D0
+    TRAP    #15
+
     SIMHALT
+
 
 *-------------------------------------------------------------------------------
 *                ________  ________  _________  ________
@@ -4156,12 +4173,14 @@ STH_INCREASE_VALUE
 *-------------------------------------------------------------------------------
 
 
-* Data for GET_INPUT
+* Data for GET_INPUT and QUERY_CONTINUE ----------
 STRING_ENTER_START      DC.B    'Please enter a start address, eg. 4A6C',0
 STRING_ENTER_END        DC.B    'Please enter a end address, eg. 5D3F',0
 STRING_INVALID_INPUT    DC.B    'INVALID INPUT, must be a valid EASy68k hexidecimal memory address',0
 STRING_OUT_OF_ORDER     DC.B    'Start address must be less than end address',0
-
+STRING_QUERY_CONTINUE   DC.B    'Would you like to disassemble another memory image? (y/n)',0
+STRING_EXITING          DC.B    'Now exiting, have a nice day',0
+* -------------------------------------------------
 
 STRING_DATA                 DC.B    'DATA: ',0
 STRING_ILLEGAL              DC.B    'ILLEGAL',0
@@ -4234,6 +4253,7 @@ LINE_COUNT    DS.W    1    * How many lines are currently displayed onscreen
 
 
     END    START
+
 
 
 
