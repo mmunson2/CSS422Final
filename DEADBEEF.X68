@@ -3427,7 +3427,7 @@ PRINT_COMMA
 *-------------------------------------------------------------------------------
 PRINT_ILLEGAL       * INCOMPLETE *
     MOVE.L          STACK_BASE,SP
-    SUBA.L          #4,SP
+    * SUBA.L          #4,SP
 
     LEA             STRING_ILLEGAL,A1
     MOVE.B          #13,D0
@@ -3451,7 +3451,7 @@ PRINT_ILLEGAL       * INCOMPLETE *
 *-------------------------------------------------------------------------------
 PRINT_NON_OPCODE_DATA
     MOVE.L          STACK_BASE,SP
-    SUBA.L          #4,SP
+ *    SUBA.L          #4,SP
 
 * ------ Print "DATA: " ------
     LEA             STRING_DATA,A1
