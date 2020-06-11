@@ -28,6 +28,7 @@ STACK_BASE     DS.L    1    *Where we begin putting print calls into stack
 LOOP_INC       DS.W    1    * How many words to skip to find the next opcode
 LOOP_INDEX     DS.L    1    * The opcode loop's index
 
+
 DATA1          DS.L    1	* The first line of opcode data
 DATA1_IN_USE   DS.W    1  * Boolean: Whether or not DATA1 is being used
 
@@ -52,16 +53,49 @@ INITIALIZE
 * ------ Test Initializations ------
 
 
-* ------ LEA TEST ------
+* ------ ADDA TEST ------
+  MOVE.W   #$D2C0, $4000 * ADDA.W    D0,A1
+  MOVE.W   #$D3C0, $4002 * ADDA.L    D0,A1
+  MOVE.W   #$DEC7, $4004 * ADDA.W    D7,A7
+  MOVE.W   #$DFC7, $4006 * ADDA.L    D7,A7
 
-  MOVE.W  #$41D0, $4000 * LEA (A0),A0
-  MOVE.W  #$4FD7, $4002 * LEA (A7),A7
+  MOVE.W   #$D2C8, $4008 * ADDA.W    A0,A1
+  MOVE.W   #$D5C9, $400A * ADDA.L    A1,A2
+  MOVE.W   #$D6CA, $400C * ADDA.W    A2,A3
+  MOVE.W   #$DFCE, $400E * ADDA.L    A6,A7
 
-  MOVE.W  #$AEAD, $4004 * DATA
-  MOVE.W  #$AEEF, $4006 * DATA
+  MOVE.W   #$D2D0, $4010 * ADDA.W    (A0),A1
+  MOVE.W   #$D3D0, $4012 * ADDA.L    (A0),A1
+  MOVE.W   #$DED7, $4014 * ADDA.W    (A7),A7
+  MOVE.W   #$DFD7, $4016 * ADDA.L    (A7),A7
 
-  MOVE.W  #$45F9, $4008 * LEA $0000100A,A2
-  MOVE.L  #$0000100A, $400A * (Data portion)
+  MOVE.W   #$D2D8, $4018 * ADDA.W    (A0)+,A1
+  MOVE.W   #$D3D8, $401A * ADDA.L    (A0)+,A1
+  MOVE.W   #$DEDF, $401C * ADDA.W    (A7)+,A7
+  MOVE.W   #$DFDF, $401E * ADDA.L    (A7)+,A7
+
+  MOVE.W   #$D2E0, $4020 * ADDA.W    -(A0),A1
+  MOVE.W   #$D3E0, $4022 * ADDA.L    -(A0),A1
+  MOVE.W   #$DEE7, $4024 * ADDA.W    -(A7),A7
+  MOVE.W   #$DFE7, $4026 * ADDA.L    -(A7),A7
+
+  MOVE.W   #$D3F9, $4028 * ADDA.L    DEADBEEF,A1
+  MOVE.L   #$00001032, $402A
+
+  MOVE.W   #$D4F9, $402E * ADDA.W    DEAD,A1
+  MOVE.L   #$00001032, $4030
+
+  MOVE.W   #$D7FC, $4034 * ADDA.W    #$DEADBEEF,A1
+  MOVE.L   #$DEADBEEF, $4036
+
+  MOVE.L    #$AEADAEAD,$403A * DATA
+  MOVE.L    #$AEADAEAD,$403E * DATA
+  MOVE.L    #$AEADAEAD,$4042 * DATA
+  MOVE.L    #$AEADAEAD,$4046 * DATA
+  MOVE.L    #$AEADAEAD,$404A * DATA
+  MOVE.L    #$AEADAEAD,$404E * DATA
+  MOVE.L    #$AEADAEAD,$4052 * DATA
+  MOVE.L    #$AEADAEAD,$4056 * DATA
 
 
 *  MOVE.W    #$4E91, $4000   * JSR Opcode
@@ -86,6 +120,7 @@ INITIALIZE
 * ------ Standard Initializations ------
   MOVE.W    #0, PRINT_COUNT
   MOVE.B    #0, MISC_NUMBER
+  MOVE.W    #0, LINE_COUNT
 
   * JSR GET_INPUT
 
@@ -146,6 +181,24 @@ OPCODE_LOOP
     ADDA    A1,A0  * Move the index to the next opcode
     MOVE.L  A0,LOOP_INDEX
 
+
+* ------ Check for pause ------
+    MOVEA.L   #0,A2
+    MOVEA.W   LINE_COUNT,A2
+    ADDA.W    #1,A2
+    MOVE.W    A2,LINE_COUNT
+
+    CMP.W     #30,A2
+    BGE       OPCODE_LOOP_PAUSE
+
+
+    BRA     OPCODE_LOOP_CONTINUE
+
+OPCODE_LOOP_PAUSE
+    JSR     PAUSE_CONSOLE
+    MOVE.W  #0, LINE_COUNT
+
+OPCODE_LOOP_CONTINUE
     BRA     OPCODE_LOOP
 
 DONE
@@ -3405,14 +3458,13 @@ PRINT_COMMA
 * D7: RTS address (opcode shouldn't be necessary at this point)
 *-------------------------------------------------------------------------------
 PRINT_ILLEGAL       * INCOMPLETE *
-    MOVE.L          (SP),D7
+    MOVE.L          STACK_BASE,SP
+    SUBA.L          #4,SP
 
-    MOVE.L          #0,SP
     LEA             STRING_ILLEGAL,A1
     MOVE.B          #13,D0
     TRAP            #15
 
-    MOVE.L          D7,(SP)
 
     MOVE.W  #2,LOOP_INC     * Increment the loop counter by 1 word
 
@@ -3430,10 +3482,10 @@ PRINT_ILLEGAL       * INCOMPLETE *
 * D5: RTS address
 *-------------------------------------------------------------------------------
 PRINT_NON_OPCODE_DATA
-    MOVE.L          (SP),D5
+    MOVE.L          STACK_BASE,SP
+    SUBA.L          #4,SP
 
 * ------ Print "DATA: " ------
-    MOVE.L          #0,SP
     LEA             STRING_DATA,A1
     MOVE.B          #14,D0
     TRAP            #15
@@ -3447,7 +3499,6 @@ PRINT_NON_OPCODE_DATA
     JSR             PRINT_IMMEDIATE_NEWLINE
 
     MOVE.W  #2,LOOP_INC     * Increment the loop counter by 1 word
-    MOVE.L          D5,(SP)
 
     RTS
 
@@ -3499,6 +3550,24 @@ PRINT_IMMEDIATE_NEWLINE
 	TRAP	   #15
 
   RTS
+
+
+
+*--------------------------------------------------------------------------------
+* PAUSE_CONSOLE
+*
+* Takes user input and promptly throws it away
+*
+*
+PAUSE_CONSOLE
+
+  MOVEQ	   #2,D0
+	TRAP	   #15
+  CLR.W    D1
+  MOVEA.L  #0,A1
+
+  RTS
+
 
 
 *--------------------------------------------------------------------------------
@@ -4182,6 +4251,7 @@ STRING_D7                   DC.B    'D7,',0
 MISC_NUMBER  DS.B    1    * MISC_NUMBER to be printed
 MISC_OPCODE  DS.W    1
 MISC_REGISTER DS.B   1
+LINE_COUNT    DS.W    1    * How many lines are currently displayed onscreen
 
 
 
