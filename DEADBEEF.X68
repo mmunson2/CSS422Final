@@ -51,39 +51,6 @@ START:
 
 *-------------------------------------------------------------------------------
 INITIALIZE
-* ------ ASL TEST ------
-   MOVE.W     #$E940,$413A	* ASL	#8,D0
-   MOVE.W     #$E1D1,$413C	* ASL 	(A1)
-   MOVE.W     #$E1C9,$413E	* ASL 	A1 (ILLEGAL)
-
-* ------ ASR TEST ------
-   MOVE.W     #$E061,$4140	* ASR	D0,D1
-   MOVE.W     #$E0D2,$4142	* ASR 	(A2)
-   MOVE.W     #$E0CA,$4144	* ASR 	A2 (ILLEGAL)
-
-* ------ LSL TEST ------
-   MOVE.W     #$EB49,$4146	* LSL	#5,D1
-   MOVE.W     #$E3E3,$4148	* LSL 	-(A3)
-   MOVE.W     #$E3CB,$414A	* LSL   A3 (ILLEGAL)
-
-* ------ LSR TEST ------
-   MOVE.W     #$E26A,$414C	* LSR	D1,S2
-   MOVE.W     #$E2DC,$414E	* LSR 	(A4)+
-   MOVE.W     #$E0D2,$4150	* LSR 	A4 (ILLEGAL)
-
-* ------ ROL TEST ------
-   MOVE.W     #$E31B,$4152 	* ROL.B	#1,D3
-   MOVE.W     #$E55C,$4154	* ROL.W #2,D4
-   MOVE.W     #$E79D,$4156	* ROL.L #3,D5
-   MOVE.W     #$E7D5,$4158	* ROL 	(A5)
-   MOVE.W     #$E7C0,$415A	* ROL 	D0 (ILLEGAL)
-
-* ------ ROR TEST ------
-   MOVE.W     #$E21B,$415C	* ROR.B	#1,D3
-   MOVE.W     #$E45C,$4160	* ROR.W #2,D4
-   MOVE.W     #$E69D,$4162	* ROR.L	#3,D5
-   MOVE.W     #$E6D6,$4164	* ROR 	(A6)
-   MOVE.W     #$E6C0,$4166	* ROL 	(D0) (ILLEGAL)
 * ------ Standard Initializations ------
   MOVE.W    #0, PRINT_COUNT
   MOVE.B    #0, MISC_NUMBER
@@ -1401,6 +1368,7 @@ LSX_ASX_ROX
   CMP.W #$18,D0
   BEQ   ROX
 
+  BRA   PRINT_ILLEGAL
 *______________________________
 *Determine Logical Shift Direction
 *------------------------------
