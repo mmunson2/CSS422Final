@@ -51,13 +51,6 @@ START:
 
 *-------------------------------------------------------------------------------
 INITIALIZE
-
-  MOVE.W    #$D5F8,$4000
-  MOVE.W    #$0012,$4002
-
-
-
-
 * ------ Standard Initializations ------
   MOVE.W    #0, PRINT_COUNT
   MOVE.B    #0, MISC_NUMBER
@@ -1583,7 +1576,7 @@ LSX_ASX_ROX_MEM
 * Finish
 *----------------------------------
 LSX_ASX_ROX_FINISH
-  MOVE.W  #2,LOOP_INC
+  ADD.W  #2,LOOP_INC
   BRA   PRINT_OPCODE
 
 LSX_ASX_ROX_RESET_D7
@@ -4271,6 +4264,7 @@ LINE_COUNT    DS.W    1    * How many lines are currently displayed onscreen
 
 
     END    START
+
 
 
 
